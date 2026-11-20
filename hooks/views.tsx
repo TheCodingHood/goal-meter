@@ -205,28 +205,7 @@ const Agents = (v: View) => {
   )
 }
 
-const Controls = (v: View, a: Actions, mode: Mode, isMuted: boolean) => {
-  const { Box, Button, Text } = v.els
-
-  return (
-    <Box>
-      {v.goal !== null && v.goal.doneAt === null && (
-        <Button key="pause" hotkey="p" label={v.goal.isPaused ? 'Weiter' : 'Pause'} onPress={a.togglePause} />
-      )}
-      <Text> </Text>
-      <Button
-        key="mode"
-        hotkey="m"
-        label={`Modus: ${mode}`}
-        onPress={() => a.setMode(mode === 'both' ? 'status' : mode === 'status' ? 'panel' : 'both')}
-      />
-      <Text> </Text>
-      <Button key="sound" hotkey="s" label={isMuted ? 'Ton: aus' : 'Ton: an'} onPress={a.toggleMute} />
-    </Box>
-  )
-}
-
-export const Pane = (v: View, a: Actions, mode: Mode, isMuted: boolean) => {
+export const Pane = (v: View, a: Actions) => {
   const { Box, Button, Text } = v.els
   const badge = (
     <Text backgroundColor={PALETTE.header} color={PALETTE.onHeader} bold>
@@ -247,7 +226,6 @@ export const Pane = (v: View, a: Actions, mode: Mode, isMuted: boolean) => {
         </Box>
         <Text> </Text>
         {Agents(v)}
-        {Controls(v, a, mode, isMuted)}
       </Box>
     )
   }
@@ -360,7 +338,6 @@ export const Pane = (v: View, a: Actions, mode: Mode, isMuted: boolean) => {
       })}
       <Text> </Text>
       {Agents(v)}
-      {Controls(v, a, mode, isMuted)}
     </Box>
   )
 }

@@ -534,6 +534,6 @@ export const register: Register = on => {
   on('ui.render', { component: 'Pane', requestId: 'goal-meter' }, async ($, e) => {
     const v = await view($, $.ui.resolve(e) as unknown as Els, e.props.bodyColumns || e.viewport?.columns || 50)
 
-    return Pane(v, actions($), await read($, modeAtom), await read($, isMutedAtom))
+    return Pane(v, actions($))
   })
 }

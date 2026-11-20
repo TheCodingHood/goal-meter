@@ -116,15 +116,14 @@ describe('pane', () => {
       expect(texts).not.toContain('  Woche ')
     })
 
-    test(`pause button and task buttons work on ${surface}`, async ($, on) => {
+    test(`only task buttons, no control buttons, on ${surface}`, async ($, on) => {
       const { seen } = setup(on)
       await $.tool.call({ tool: TOOL, goal: 'Ship login', tasks: LOGIN })
       const ui = await $.ui.mount({ plugin: 'goal-meter', surface, component: 'Pane', requestId: 'goal-meter', props: PANE_PROPS })
 
-      await ui.press({ key: 'pause' })
-      expect((await ui.find({ key: 'pause' }))?.props.label).toBe('Weiter')
-      await ui.press({ key: 'pause' })
-      expect((await ui.find({ key: 'pause' }))?.props.label).toBe('Pause')
+      expect(await ui.find({ key: 'mode' })).toBeUndefined()
+      expect(await ui.find({ key: 'sound' })).toBeUndefined()
+      expect(await ui.find({ key: 'pause' })).toBeUndefined()
 
       await ui.press({ key: 'task-2' })
       expect(seen.prompts).toEqual(['Mach mit "Test" weiter'])

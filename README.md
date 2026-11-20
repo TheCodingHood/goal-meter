@@ -4,7 +4,7 @@
 
 **Ein Live-Zielmesser für Claude Code.** Zeigt das große Ziel, jede Hauptaufgabe und Teilaufgabe, was erledigt ist, was gerade läuft, wie lange es gedauert hat und wann es fertig sein wird – in einem Pane neben deiner Session.
 
-[![Version](https://img.shields.io/badge/version-0.6.0--de.1-6366f1.svg)](.claude-plugin/plugin.json)
+[![Version](https://img.shields.io/badge/version-0.6.0--de.3-6366f1.svg)](.claude-plugin/plugin.json)
 [![License: MIT](https://img.shields.io/badge/license-MIT-22c55e.svg)](LICENSE)
 [![Claude Code mod](https://img.shields.io/badge/Claude%20Code-mod-d97757.svg)](https://claude.com/claude-code)
 
@@ -44,7 +44,7 @@
 - **Subagents.** Agents, die Claude startet, erscheinen im Pane, solange sie laufen, und ihre Anzahl in der Leiste.
 - **Bericht und Verlauf.** `/goal-meter report` liefert eine Markdown-Zusammenfassung fürs Standup; `/goal-meter history` listet erreichte Ziele mit Zeit und Kosten.
 - **Bleibt erhalten.** Ein laufendes Ziel wird in eine neue Session übernommen.
-- **Knöpfe.** Im Pane bittet ein Klick auf eine Aufgabe Claude, damit weiterzumachen; dazu Knöpfe für Pause, Modus und Ton.
+- **Knöpfe.** Im Pane bittet ein Klick auf eine Aufgabe Claude, damit weiterzumachen; Pause, Modus und Ton stellst du per Befehl ein.
 - **Töne**, wenn ein Ziel erreicht ist und wenn ein Kontingent-Hinweis kommt (`/goal-meter sound off` schaltet sie stumm).
 
 ## Installation
@@ -116,9 +116,9 @@ Modus und Ton-Einstellung bleiben über Sessions hinweg erhalten. Der Messer ers
 
 - **Über dem Prompt**, als zweizeilige Leiste: Ziel, gestapelter Fortschrittsbalken, ETA, laufende Aufgabe, laufende Agents, Frist und Kontingent, dazu eine rote Zeile, wenn ein Kontingent vorher leer wäre.
 - **In der Statuszeile**, eine Zeile Text: `Goal 52% (5/11) · ◐ Build the API · ETA 14:52 | 5 Std. 47% · Woche 24%`.
-- **In einem Pane**, der ganze Messer mit allen Aufgaben und Teilaufgaben, Kosten je Aufgabe, Kontingent-Prognose, Agents und Knöpfen. Es öffnet sich von selbst, wenn im Modus `panel` oder `both` ein Ziel beginnt, oder jederzeit mit `/goal-meter pane`.
+- **In einem Pane**, der ganze Messer mit allen Aufgaben und Teilaufgaben, Kosten je Aufgabe, und Agents. Kontingent und Context zeigt das Pane in dieser Fassung nicht; dafür gibt es Leiste und Statuszeile. Es öffnet sich von selbst, wenn im Modus `panel` oder `both` ein Ziel beginnt, oder jederzeit mit `/goal-meter pane`.
 
-Im Pane: `p` pausiert oder setzt fort, `m` wechselt den Modus, `s` schaltet den Ton um, und ein Klick auf eine Aufgabe bittet Claude, damit weiterzumachen.
+Im Pane bittet ein Klick auf eine Aufgabe Claude, damit weiterzumachen.
 
 ## So funktioniert es
 
