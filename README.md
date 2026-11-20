@@ -2,175 +2,192 @@
 
 # goal-meter
 
-**A live goal meter for Claude Code.** See the big goal, every main task and subtask, what's done, what's running, how long it took and when it will finish, in a pane beside your session.
+**Ein Live-Zielmesser für Claude Code.** Zeigt das große Ziel, jede Hauptaufgabe und Teilaufgabe, was erledigt ist, was gerade läuft, wie lange es gedauert hat und wann es fertig sein wird – in einem Pane neben deiner Session.
 
-[![CI](https://github.com/TheerasakPing/goal-meter/actions/workflows/ci.yml/badge.svg)](https://github.com/TheerasakPing/goal-meter/actions/workflows/ci.yml)
-[![Version](https://img.shields.io/github/v/tag/TheerasakPing/goal-meter?label=version&color=6366f1)](https://github.com/TheerasakPing/goal-meter/tags)
+[![Version](https://img.shields.io/badge/version-0.6.0--de.1-6366f1.svg)](.claude-plugin/plugin.json)
 [![License: MIT](https://img.shields.io/badge/license-MIT-22c55e.svg)](LICENSE)
 [![Claude Code mod](https://img.shields.io/badge/Claude%20Code-mod-d97757.svg)](https://claude.com/claude-code)
 
-[English](README.md) · [ภาษาไทย](README.th.md)
+[Deutsch](README.md) · [English](README.en.md) · [ภาษาไทย](README.th.md)
 
-<img src="docs/preview.svg" alt="goal-meter pane: a goal, a stacked progress bar colored per task, elapsed time and ETA, and a task list with subtasks" width="820">
+<img src="docs/preview.svg" alt="goal-meter-Pane: ein Ziel, ein gestapelter Fortschrittsbalken in einer Farbe je Aufgabe, verstrichene Zeit und ETA sowie eine Aufgabenliste mit Teilaufgaben" width="820">
 
 </div>
 
-## Features
+> **Deutsche Fassung.** Dieser Fork von [TheerasakPing/goal-meter](https://github.com/TheerasakPing/goal-meter) übersetzt alle Texte im Pane, in der Leiste über dem Prompt, in der Statuszeile und in den Toasts ins Deutsche. Funktionen und Logik sind unverändert. Das Vorschaubild (`docs/preview.svg`) zeigt noch die Thai-Texte des Originals.
 
-**Progress**
+## Funktionen
 
-- **Goal, tasks and subtasks.** One goal on top, main tasks below, the running task's subtasks opened as a tree.
-- **A color for each task**, used in its row and in its stretch of one stacked progress bar. Finished work fills the bar, work in progress blinks, work not started stays gray.
-- **Status at a glance.** `✔` done (green), `◐` running (amber, spinning), `○` not started (gray). Finished subtasks are struck through.
-- **Hands-free.** Claude keeps the meter current through the `update` tool, and when it uses Claude Code's own task list instead (`TodoWrite`, `TaskCreate`, `TaskUpdate`), the meter follows that list by itself.
+**Fortschritt**
 
-**Time**
+- **Ziel, Aufgaben und Teilaufgaben.** Oben ein Ziel, darunter die Hauptaufgaben; die Teilaufgaben der laufenden Aufgabe sind als Baum aufgeklappt.
+- **Eine Farbe je Aufgabe**, in ihrer Zeile und in ihrem Abschnitt des gestapelten Fortschrittsbalkens. Erledigtes füllt den Balken, Laufendes blinkt, nicht Begonnenes bleibt grau.
+- **Status auf einen Blick.** `✔` erledigt (grün), `◐` läuft (bernstein, dreht sich), `○` nicht begonnen (grau). Erledigte Teilaufgaben werden durchgestrichen.
+- **Ohne Zutun.** Claude hält den Messer über das Tool `update` aktuell. Nutzt Claude stattdessen die eingebaute Aufgabenliste von Claude Code (`TodoWrite`, `TaskCreate`, `TaskUpdate`), folgt der Messer dieser Liste von selbst.
 
-- **Active time, not wall time.** The clock runs only while Claude is working on a turn, so a lunch break does not wreck the ETA. Both are shown: `ทำงานจริง 12m (ผ่านไป 40m)`.
-- **ETA that learns.** Each finished goal records how far its half-way prediction was off; later ETAs are scaled by the median of that history.
-- **Deadline.** `/goal-meter deadline 17:00` shows whether the ETA makes it, or how late it would be.
-- **Pause.** Stop and restart the clock with `/goal-meter pause` / `resume` or the pane's button.
+**Zeit**
 
-**Cost and quota**
+- **Aktive Zeit statt Wanduhr.** Die Uhr läuft nur, während Claude an einem Turn arbeitet; eine Mittagspause verdirbt die ETA also nicht. Beides wird angezeigt: `Aktiv 12m (gesamt 40m)`.
+- **ETA, die dazulernt.** Jedes erreichte Ziel speichert, wie weit die Prognose zur Halbzeit danebenlag; spätere ETAs werden mit dem Median dieses Verlaufs skaliert.
+- **Frist.** `/goal-meter deadline 17:00` zeigt, ob die ETA die Frist hält oder wie viel später es wird.
+- **Pause.** Die Uhr mit `/goal-meter pause` / `resume` oder dem Knopf im Pane anhalten und weiterlaufen lassen.
 
-- **Cost per goal and per task**, from the session's spend between start and finish.
-- **Usage quota.** Your Claude 5-hour and weekly limits on one row, with percent used and time until reset.
-- **Quota forecast.** From how fast each window rose this period: `5 ชม. หมดราว 15:40`. A red warning shows when a window would run out before the goal is done.
-- **Quota alerts** at 80% and 90%, as a toast and a sound, once per window period.
+**Kosten und Kontingent**
 
-**Everything else**
+- **Kosten je Ziel und je Aufgabe**, aus den Ausgaben der Session zwischen Start und Ende.
+- **Nutzungskontingent.** Dein 5-Stunden- und Wochenlimit bei Claude in einer Zeile, mit verbrauchtem Anteil und Zeit bis zum Zurücksetzen.
+- **Kontingent-Prognose.** Aus dem Anstieg jedes Fensters in diesem Zeitraum: `5 Std. leer um 15:40`. Eine rote Warnung erscheint, wenn ein Fenster leer wäre, bevor das Ziel erreicht ist.
+- **Kontingent-Hinweise** bei 80 % und 90 %, als Toast und Ton, einmal je Zeitraum.
 
-- **Subagents.** Agents Claude starts show in the pane while they run, and their count in the band.
-- **Report and history.** `/goal-meter report` gives a Markdown summary for a standup; `/goal-meter history` lists finished goals with their time and cost.
-- **Carries over.** A goal in progress is kept when you start a new session.
-- **Buttons.** In the pane, press a task to ask Claude to continue it, and use the pause, mode and sound buttons.
-- **Sounds** when a goal is reached and when a quota alert fires (`/goal-meter sound off` to mute).
+**Alles andere**
 
-## Install
+- **Subagents.** Agents, die Claude startet, erscheinen im Pane, solange sie laufen, und ihre Anzahl in der Leiste.
+- **Bericht und Verlauf.** `/goal-meter report` liefert eine Markdown-Zusammenfassung fürs Standup; `/goal-meter history` listet erreichte Ziele mit Zeit und Kosten.
+- **Bleibt erhalten.** Ein laufendes Ziel wird in eine neue Session übernommen.
+- **Knöpfe.** Im Pane bittet ein Klick auf eine Aufgabe Claude, damit weiterzumachen; dazu Knöpfe für Pause, Modus und Ton.
+- **Töne**, wenn ein Ziel erreicht ist und wenn ein Kontingent-Hinweis kommt (`/goal-meter sound off` schaltet sie stumm).
 
-At the prompt of a Claude Code session in a terminal:
+## Installation
 
-```
-/plugin install goal-meter --marketplace TheerasakPing/goal-meter
-```
-
-Answer `y` to add the marketplace, then pick a scope (`user` is recommended). The mod is active right away.
-
-**Update** to the latest version, in a terminal:
+Am Prompt einer Claude-Code-Session im Terminal:
 
 ```
+/plugin install goal-meter --marketplace TheCodingHood/goal-meter
+```
+
+Mit `y` den Marketplace hinzufügen, dann einen Scope wählen (`user` empfohlen). Der Mod ist sofort aktiv.
+
+Oder ohne Session, im Terminal:
+
+```bash
+claude plugin marketplace add TheCodingHood/goal-meter
+claude plugin install goal-meter@goal-meter --scope user
+```
+
+Ist bereits das Original installiert, vorher entfernen – beide Marketplaces heißen `goal-meter`:
+
+```bash
+claude plugin uninstall goal-meter@goal-meter
+claude plugin marketplace remove goal-meter
+```
+
+**Aktualisieren** auf die neueste Version, im Terminal:
+
+```bash
 claude plugin marketplace update goal-meter
 claude plugin update goal-meter@goal-meter
 ```
 
-The first command fetches the new version list, the second updates the installed mod. Then start a new session.
+Der erste Befehl holt die neue Versionsliste, der zweite aktualisiert den installierten Mod. Danach eine neue Session starten.
 
-> The `/plugin` command works in a terminal session. A mod installed at the user scope also loads in the desktop app's Code tab.
+> Der Befehl `/plugin` funktioniert in einer Terminal-Session. Ein im Scope `user` installierter Mod lädt auch im Code-Tab der Desktop-App.
 
-## Where it works
+## Wo es läuft
 
-| Where | Works |
+| Wo | Läuft |
 | --- | --- |
-| Claude Code in a terminal | ✅ Install and use |
-| Claude Desktop, **Code** tab | ✅ Install from a terminal at the `user` scope; it loads there too |
-| Claude Code in VS Code, mobile | Should work (not tested) |
-| claude.ai chat, Claude app chat | ❌ No mod support there |
+| Claude Code im Terminal | ✅ Installieren und nutzen |
+| Claude Desktop, Tab **Code** | ✅ Im Terminal im Scope `user` installieren; lädt dort ebenfalls |
+| Claude Code in VS Code, mobil | Sollte laufen (nicht getestet) |
+| Chat auf claude.ai, Chat in der Claude-App | ❌ Dort gibt es keine Mods |
 
-The usage quota needs a Claude subscription (Pro or Max) and shows after Claude's first reply in a session. Built against Claude Code 2.1.295's early-access mod API.
+Das Nutzungskontingent braucht ein Claude-Abo (Pro oder Max) und erscheint nach der ersten Antwort von Claude in einer Session. Gebaut gegen die Early-Access-Mod-API von Claude Code 2.1.295.
 
-## Usage
+## Nutzung
 
-Give Claude any multi-step task. The meter fills in as Claude works.
+Gib Claude eine beliebige Aufgabe mit mehreren Schritten. Der Messer füllt sich, während Claude arbeitet.
 
-| Command | What it does |
+| Befehl | Wirkung |
 | --- | --- |
-| `/goal-meter` | Show the meter |
-| `/goal-meter <goal>` | Set a goal yourself |
-| `/goal-meter pause` · `resume` | Stop or restart the active-time clock |
-| `/goal-meter deadline 17:00` | Set a deadline (`off` removes it) |
-| `/goal-meter report` | Markdown summary of the goal |
-| `/goal-meter history` | Goals finished before |
-| `/goal-meter mode status` · `panel` · `both` | Where the meter shows (default `both`) |
-| `/goal-meter sound on` · `off` | Sounds for goal done and quota alerts |
-| `/goal-meter hide` | Hide the band above the prompt (the status line stays) |
-| `/goal-meter pane` | Open the full pane |
-| `/goal-meter clear` | Clear the goal |
-| `/goal-meter help` | List the commands |
+| `/goal-meter` | Messer anzeigen |
+| `/goal-meter <Ziel>` | Selbst ein Ziel setzen |
+| `/goal-meter pause` · `resume` | Uhr für die aktive Zeit anhalten oder weiterlaufen lassen |
+| `/goal-meter deadline 17:00` | Frist setzen (`off` entfernt sie) |
+| `/goal-meter report` | Markdown-Zusammenfassung des Ziels |
+| `/goal-meter history` | Bisher erreichte Ziele |
+| `/goal-meter mode status` · `panel` · `both` | Wo der Messer erscheint (Standard `both`) |
+| `/goal-meter sound on` · `off` | Töne für erreichtes Ziel und Kontingent-Hinweise |
+| `/goal-meter hide` | Leiste über dem Prompt ausblenden (die Statuszeile bleibt) |
+| `/goal-meter pane` | Ganzes Pane öffnen |
+| `/goal-meter clear` | Ziel löschen |
+| `/goal-meter help` | Befehle auflisten |
 
-The mode and the sound setting are remembered across sessions. The meter shows in up to three places:
+Modus und Ton-Einstellung bleiben über Sessions hinweg erhalten. Der Messer erscheint an bis zu drei Stellen:
 
-- **Above the prompt**, a two-row band: the goal, the stacked progress bar, ETA, the task in progress, running agents, the deadline and the quota, plus a red line when a quota would run out first.
-- **In the status line**, one line of text: `Goal 52% (5/11) · ◐ Build the API · ETA 14:52 | 5 ชม. 47% · สัปดาห์ 24%`.
-- **In a pane**, the full meter with every task and subtask, cost per task, quota forecast, agents and buttons. It opens by itself when a goal starts in `panel` or `both` mode, or any time with `/goal-meter pane`.
+- **Über dem Prompt**, als zweizeilige Leiste: Ziel, gestapelter Fortschrittsbalken, ETA, laufende Aufgabe, laufende Agents, Frist und Kontingent, dazu eine rote Zeile, wenn ein Kontingent vorher leer wäre.
+- **In der Statuszeile**, eine Zeile Text: `Goal 52% (5/11) · ◐ Build the API · ETA 14:52 | 5 Std. 47% · Woche 24%`.
+- **In einem Pane**, der ganze Messer mit allen Aufgaben und Teilaufgaben, Kosten je Aufgabe, Kontingent-Prognose, Agents und Knöpfen. Es öffnet sich von selbst, wenn im Modus `panel` oder `both` ein Ziel beginnt, oder jederzeit mit `/goal-meter pane`.
 
-In the pane: `p` pauses or resumes, `m` cycles the mode, `s` toggles sound, and pressing a task asks Claude to continue it.
+Im Pane: `p` pausiert oder setzt fort, `m` wechselt den Modus, `s` schaltet den Ton um, und ein Klick auf eine Aufgabe bittet Claude, damit weiterzumachen.
 
-## How it works
+## So funktioniert es
 
-The mod registers a tool, `mcp__goal-meter__update`, and adds a short note to the system prompt asking Claude to call it whenever a task starts or finishes. Each call sends the full list:
+Der Mod registriert ein Tool, `mcp__goal-meter__update`, und ergänzt den System-Prompt um einen kurzen Hinweis: Claude soll es aufrufen, sobald eine Aufgabe beginnt oder endet. Jeder Aufruf schickt die vollständige Liste:
 
 ```json
 {
-  "goal": "Ship the login flow",
+  "goal": "Login-Flow ausliefern",
   "tasks": [
-    { "title": "Design the screens", "status": "done" },
+    { "title": "Screens entwerfen", "status": "done" },
     {
-      "title": "Build the API",
+      "title": "API bauen",
       "status": "in_progress",
       "subtasks": [
         { "title": "POST /login", "status": "done" },
-        { "title": "Session tokens", "status": "in_progress" },
-        { "title": "Rate limiting", "status": "pending" }
+        { "title": "Session-Tokens", "status": "in_progress" },
+        { "title": "Rate Limiting", "status": "pending" }
       ]
     },
-    { "title": "Test end to end", "status": "pending" }
+    { "title": "End-to-End testen", "status": "pending" }
   ]
 }
 ```
 
-When Claude uses Claude Code's own task tools instead, the mod reads `TodoWrite`, `TaskCreate` and `TaskUpdate` calls and builds the same list (by task id for `TaskCreate`/`TaskUpdate`). A goal written by the `update` tool wins: the built-in list never overwrites it.
+Nutzt Claude stattdessen die eingebauten Aufgaben-Tools von Claude Code, liest der Mod die Aufrufe von `TodoWrite`, `TaskCreate` und `TaskUpdate` mit und baut daraus dieselbe Liste (bei `TaskCreate`/`TaskUpdate` über die Task-ID). Ein Ziel aus dem Tool `update` hat Vorrang: Die eingebaute Liste überschreibt es nie.
 
-- **Times** are recorded by the mod, not by Claude. An item's clock starts the first time it is seen running and stops the first time it is seen done.
-- **Active time** runs from `turn.start` to `turn.complete` of the main conversation, and not while paused.
-- **Progress** counts leaf units: each subtask, or the task itself when it has none. Done counts 1, running counts ½.
-- **ETA** is `active time × (1 − progress) ÷ progress × factor`. The factor is the median of `actual ÷ predicted` over finished goals (each predicted at its half-way mark), kept between 0.5 and 2, and 1 until two goals are recorded.
-- **Cost** of a task is the session's cost when it finished minus the cost when it started.
-- **Quota** comes from the rate-limit windows the last API response reported (`$.session.usage()`), so it shows once Claude has answered at least once, and only on a Claude subscription. The forecast needs two readings at least 2 minutes apart in the same window period.
+- **Zeiten** erfasst der Mod, nicht Claude. Die Uhr einer Aufgabe startet, wenn sie zum ersten Mal als laufend gesehen wird, und stoppt, wenn sie zum ersten Mal als erledigt gesehen wird.
+- **Aktive Zeit** läuft von `turn.start` bis `turn.complete` der Hauptunterhaltung, und nicht während einer Pause.
+- **Fortschritt** zählt Blatt-Einheiten: jede Teilaufgabe, oder die Aufgabe selbst, wenn sie keine hat. Erledigt zählt 1, laufend ½.
+- **ETA** ist `aktive Zeit × (1 − Fortschritt) ÷ Fortschritt × Faktor`. Der Faktor ist der Median von `tatsächlich ÷ vorhergesagt` über erreichte Ziele (jeweils zur Halbzeit vorhergesagt), begrenzt auf 0,5 bis 2, und 1, bis zwei Ziele erfasst sind.
+- **Kosten** einer Aufgabe sind die Kosten der Session bei ihrem Ende minus die Kosten bei ihrem Start.
+- **Kontingent** stammt aus den Rate-Limit-Fenstern, die die letzte API-Antwort gemeldet hat (`$.session.usage()`). Es erscheint also erst, nachdem Claude mindestens einmal geantwortet hat, und nur mit einem Claude-Abo. Die Prognose braucht mindestens zwei Messungen im Abstand von 2 Minuten im selben Zeitraum.
 
-The goal, mode, sound setting and history are kept with `$.store`, so they survive a new session; everything else lives in the session.
+Ziel, Modus, Ton-Einstellung und Verlauf liegen in `$.store` und überstehen damit eine neue Session; alles andere lebt nur in der Session.
 
-## Development
+## Entwicklung
 
 ```bash
-git clone https://github.com/TheerasakPing/goal-meter
+git clone https://github.com/TheCodingHood/goal-meter
 cd goal-meter
-claude --plugin-dir .          # run Claude Code with the mod loaded from this folder
-claude plugin validate .       # check the manifest and hooks module
-claude plugin test .           # run hooks/*.test.tsx
+claude --plugin-dir .          # Claude Code mit dem Mod aus diesem Ordner starten
+claude plugin validate .       # Manifest und Hooks-Modul prüfen
+claude plugin test .           # hooks/*.test.tsx ausführen
 ```
 
 ```
 .claude-plugin/
-  plugin.json        manifest
-  marketplace.json   makes this repo installable with /plugin install
+  plugin.json        Manifest
+  marketplace.json   macht dieses Repo mit /plugin install installierbar
 hooks/
-  hooks.json         points at register.tsx
-  register.tsx       events, tools, the command, state, and the two drawings' hooks
-  views.tsx          the band above the prompt and the pane
-  meter.ts           pure logic: merging, progress, active time, ETA, deadline, bar slices
-  quota.ts           quota readings, forecast and alerts
-  report.ts          /goal-meter report and history as Markdown
-  state.ts           shared constants
-  palette.ts         colors
+  hooks.json         verweist auf register.tsx
+  register.tsx       Events, Tools, der Befehl, Zustand und die Hooks der beiden Ansichten
+  views.tsx          die Leiste über dem Prompt und das Pane
+  meter.ts           reine Logik: Zusammenführen, Fortschritt, aktive Zeit, ETA, Frist, Balkenabschnitte
+  quota.ts           Kontingent-Messungen, Prognose und Hinweise
+  report.ts          /goal-meter report und history als Markdown
+  state.ts           gemeinsame Konstanten
+  palette.ts         Farben
   goal-meter.test.tsx
 sounds/              done.wav, alert.wav
-types/index.d.ts     the state contract
+types/index.d.ts     der Zustandsvertrag
 ```
 
-Colors live in `hooks/palette.ts`. Change `PALETTE` or `TASK_COLORS` to restyle the meter.
+Die Farben stehen in `hooks/palette.ts`. `PALETTE` oder `TASK_COLORS` ändern, um den Messer umzufärben.
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) to send a change and [CHANGELOG.md](CHANGELOG.md) for what changed.
+Änderungen am Original holen: `git remote add upstream https://github.com/TheerasakPing/goal-meter`, dann `git fetch upstream` und `upstream/main` hereinmergen. Neue Thai-Texte danach wieder übersetzen.
 
-## License
+Siehe [CONTRIBUTING.md](CONTRIBUTING.md), um eine Änderung einzureichen, und [CHANGELOG.md](CHANGELOG.md) für die Änderungen.
+
+## Lizenz
 
 [MIT](LICENSE) © TheerasakPing
