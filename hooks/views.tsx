@@ -177,17 +177,6 @@ export const Band = (v: View) => {
 
 // --- pane --------------------------------------------------------------------
 
-// Pane footer: context and cost only. The quota row lives in the band and the status line.
-const Quota = (v: View) => {
-  const { Text } = v.els
-  const extras = [
-    v.usage?.context.percent !== undefined ? `context ${Math.round(v.usage.context.percent)}%` : '',
-    v.usage?.cost !== undefined ? formatUsd(v.usage.cost.usd) : '',
-  ].filter(Boolean)
-
-  return extras.length > 0 ? <Text dimColor>{extras.join(' · ')}</Text> : null
-}
-
 const Agents = (v: View) => {
   const { Box, Text } = v.els
   if (v.agents.length === 0) return null
@@ -257,7 +246,6 @@ export const Pane = (v: View, a: Actions, mode: Mode, isMuted: boolean) => {
           {ModelTag(v, ' ')}
         </Box>
         <Text> </Text>
-        {Quota(v)}
         {Agents(v)}
         {Controls(v, a, mode, isMuted)}
       </Box>
@@ -371,7 +359,6 @@ export const Pane = (v: View, a: Actions, mode: Mode, isMuted: boolean) => {
         )
       })}
       <Text> </Text>
-      {Quota(v)}
       {Agents(v)}
       {Controls(v, a, mode, isMuted)}
     </Box>
