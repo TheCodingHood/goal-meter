@@ -33,7 +33,7 @@ import {
   PANE,
   PANE_TITLE,
 } from './state'
-import { Band, Pane } from './views'
+import { Pane } from './views'
 import type { Actions, Els, View } from './views'
 
 const goalAtom = atom({ plugin: 'goal-meter', key: 'goal' } as const, null)
@@ -97,7 +97,7 @@ const HELP = [
   '/goal-meter history         goals finished before',
   '/goal-meter mode status | panel | both',
   '/goal-meter sound on | off',
-  '/goal-meter hide | pane | clear',
+  '/goal-meter pane | clear',
 ].join('\n')
 
 // --- engine helpers (functions given $ live in this file) --------------------
@@ -423,8 +423,7 @@ export const register: Register = on => {
         await refreshStatus($)
         return { text: 'Goal meter cleared.' }
       case 'hide':
-        await update($, isBandHiddenAtom, () => true)
-        return { text: 'Goal meter hidden. /goal-meter shows it again.' }
+        return { text: 'This version has no band above the prompt; the pane is the meter.' }
       case 'pane':
         await $.ui.open({ id: PANE, title: 'Goal meter' })
         return { text: 'Goal meter pane opened.' }
@@ -483,15 +482,6 @@ export const register: Register = on => {
     if (hasPanel(mode)) await openPane($)
 
     return { text: args === '' ? `Goal meter shown (mode: ${mode}). /goal-meter help lists the commands.` : `Goal set: ${args}` }
-  })
-
-  on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {
-    const goal = await read($, goalAtom)
-    const usage = await usageOf($)
-    const isHidden = e.props.hasSurvey || (await read($, isBandHiddenAtom)) || !hasStatus(await read($, modeAtom))
-    if (isHidden || (goal === null && (usage?.rateLimits ?? []).length === 0 && (await read($, modelAtom)) === null)) return next(e)
-
-    return Band(await view($, $.ui.resolve(e) as unknown as Els, e.props.bodyColumns || 80))
   })
 
   on('ui.render', { component: 'Pane', requestId: 'goal-meter' }, async ($, e) => {

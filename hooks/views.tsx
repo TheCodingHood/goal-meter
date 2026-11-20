@@ -3,19 +3,14 @@ import type { Elements, SessionUsage } from 'claude-code'
 import type { Agent, Goal, Mode, ModelInfo, QuotaSample, RunStatus, RunStep, RunStepStatus, Step, TaskRun } from '../types'
 import {
   deadlineState,
-  displayWidth,
   estimate,
   formatClock,
   formatDuration,
   formatUsd,
-  modelText,
   progress,
-  quotaLabel,
-  slices,
   truncate,
 } from './meter'
 import { PALETTE, STATUS_COLOR, gradientAt, icon, taskColor } from './palette'
-import { exhaustAt } from './quota'
 import { RUN_GLYPH, isVisible, runFraction, stepFraction } from './tasks'
 
 // Box, Text and Button take the same props on every surface this mod draws on.
@@ -45,33 +40,6 @@ const WARN = '#ef4444'
 
 const blinkOn = (now: number) => Math.floor(now / 500) % 2 === 0
 
-// The windows that would run out before the goal is done.
-export const quotaWarnings = (v: View): { kind: string; at: number }[] => {
-  if (v.goal === null || v.goal.doneAt !== null) return []
-  const eta = estimate(v.goal, v.now, v.factor).etaAt
-  if (eta === null) return []
-
-  return (v.usage?.rateLimits ?? []).flatMap(limit => {
-    const at = exhaustAt(v.samples, limit, v.now)
-    return at !== null && at < eta ? [{ kind: limit.kind, at }] : []
-  })
-}
-
-const StackedBar = (v: View, goal: Goal, width: number) => {
-  const { Box, Text } = v.els
-  const isOn = blinkOn(v.now)
-
-  return slices(goal, width).map(slice => (
-    <Box>
-      <Text color={taskColor(slice.task)}>{'█'.repeat(slice.done)}</Text>
-      <Text color={taskColor(slice.task)} dimColor={!isOn}>
-        {(isOn ? '▓' : '░').repeat(slice.running)}
-      </Text>
-      <Text color="subtle">{'░'.repeat(slice.empty)}</Text>
-    </Box>
-  ))
-}
-
 const deadlineText = (v: View, goal: Goal): { text: string; color: string } | null => {
   const d = deadlineState(goal, v.now, v.factor)
   if (d.kind === 'none') return null
@@ -80,104 +48,6 @@ const deadlineText = (v: View, goal: Goal): { text: string; color: string } | nu
 
   return { text: ` · Frist verfehlt um ~${formatDuration(d.byMs)}`, color: WARN }
 }
-
-const runningAgents = (v: View) => v.agents.filter(a => a.doneAt === null)
-
-const ModelTag = (v: View, gap: string) => {
-  const { Text } = v.els
-
-  return v.model === null ? null : <Text color={PALETTE.header}>{`${gap}◆ ${modelText(v.model)}`}</Text>
-}
-
-// --- band above the prompt -------------------------------------------------
-
-export const Band = (v: View) => {
-  const { Box, Text } = v.els
-  const limits = v.usage?.rateLimits ?? []
-  const quotaParts = limits.map((limit, k) => {
-    const used = Math.min(100, Math.max(0, limit.percentUsed))
-    const width = 8
-    const cells = Math.round((used / 100) * width)
-    const color = gradientAt(1 - used / 100)
-    return (
-      <Box>
-        <Text dimColor>{`${k > 0 ? '  ' : ''}${quotaLabel(limit.kind)} `}</Text>
-        <Text color={color}>{'█'.repeat(cells)}</Text>
-        <Text color="subtle">{'░'.repeat(width - cells)}</Text>
-        <Text bold color={color}>{` ${Math.round(limit.percentUsed)}%`}</Text>
-      </Box>
-    )
-  })
-  const goal = v.goal
-  if (goal === null) {
-    return (
-      <Box>
-        {quotaParts}
-        {ModelTag(v, quotaParts.length > 0 ? '  ' : '')}
-      </Box>
-    )
-  }
-
-  const { done, total, ratio } = progress(goal)
-  const { remainingMs, etaAt } = estimate(goal, v.now, v.factor)
-  const isGoalDone = goal.doneAt !== null
-  const pctText = ` ${Math.round(ratio * 100)}%`
-  const eta = isGoalDone
-    ? ' erreicht ✔'
-    : goal.isPaused
-      ? ' Pause'
-      : remainingMs === null || etaAt === null
-        ? ' schätze…'
-        : ` fertig ${formatClock(etaAt)}`
-  const title = truncate(goal.title, Math.min(28, Math.max(8, Math.floor(v.cols / 4))))
-  const barWidth = Math.max(10, v.cols - displayWidth(title) - pctText.length - displayWidth(eta) - 3)
-  const runIndex = goal.tasks.findIndex(task => task.status === 'in_progress')
-  const index = runIndex >= 0 ? runIndex : goal.tasks.findIndex(task => task.status === 'pending')
-  const current = index >= 0 ? goal.tasks[index] : undefined
-  const warnings = quotaWarnings(v)
-  const agents = runningAgents(v)
-  const deadline = deadlineText(v, goal)
-
-  return (
-    <Box flexDirection="column">
-      <Box>
-        <Text bold color={isGoalDone ? PALETTE.done : 'claude'}>{`${title} `}</Text>
-        {StackedBar(v, goal, barWidth)}
-        <Text bold color={gradientAt(ratio)}>{pctText}</Text>
-        <Text color={isGoalDone ? PALETTE.done : goal.isPaused ? 'subtle' : PALETTE.eta} bold>
-          {eta}
-        </Text>
-      </Box>
-      <Box justifyContent="space-between">
-        <Box>
-          {current !== undefined && (
-            <Box>
-              <Text color={STATUS_COLOR[current.status]} bold>{`${icon(current.status, v.now)} `}</Text>
-              <Text color={taskColor(index)} bold>{`${index + 1}/${goal.tasks.length} `}</Text>
-              <Text color={taskColor(index)} wrap="truncate-end">
-                {current.title}
-              </Text>
-            </Box>
-          )}
-          {current === undefined && <Text dimColor>{`${done}/${total} Teilaufgaben erledigt`}</Text>}
-          {agents.length > 0 && <Text color={PALETTE.remaining}>{` · ${agents.length} Agent(s) aktiv`}</Text>}
-          {deadline !== null && <Text color={deadline.color}>{deadline.text}</Text>}
-        </Box>
-        <Box>
-          {quotaParts}
-          {ModelTag(v, '  ')}
-        </Box>
-      </Box>
-      {warnings.map(w => (
-        <Text color={WARN} bold>
-          {`! Kontingent ${quotaLabel(w.kind)} evtl. leer um ${formatClock(w.at)}, vor dem Ziel`}
-        </Text>
-      ))}
-    </Box>
-  )
-}
-
-// --- pane --------------------------------------------------------------------
 
 const Agents = (v: View) => {
   const { Box, Text } = v.els

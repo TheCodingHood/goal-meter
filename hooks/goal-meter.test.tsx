@@ -137,30 +137,18 @@ describe('pane', () => {
 
 describe('band above the prompt', () => {
   for (const surface of SURFACES) {
-    test(`draws the band and hides it on ${surface}`, async ($, on) => {
+    test(`draws no band, even with a goal and quota, on ${surface}`, async ($, on) => {
       setup(on, { limits: [{ kind: 'five_hour', percentUsed: 47 }] })
       await $.tool.call({ tool: TOOL, goal: 'Ship login', tasks: [{ title: 'Design', status: 'done' }, { title: 'Build', status: 'in_progress' }] })
-      const band = () => $.ui.mount({ plugin: 'goal-meter', surface, component: 'AbovePrompt', props: BAND_PROPS })
-      const texts = (await (await band()).findAll({ type: 'Text' })).map(t => t.text)
-      expect(texts).toContain('Ship login ')
-      expect(texts).toContain('2/2 ')
-      expect(texts).toContain('Build')
-      expect(texts).toContain('5 Std. ')
-
-      await $.command.run({ command: 'goal-meter', args: 'hide' } as never)
-      const hidden = await (await band()).findAll({ type: 'Text' })
-      expect(hidden.some(t => t.text === 'Ship login ')).toBe(false)
+      const band = await $.ui.mount({ plugin: 'goal-meter', surface, component: 'AbovePrompt', props: BAND_PROPS })
+      expect((await band.findAll({ type: 'Text' })).length).toBe(0)
     })
   }
 
-  test('panel mode leaves the band to the engine and status mode closes the pane', async ($, on) => {
+  test('status mode closes the pane', async ($, on) => {
     const { seen } = setup(on)
     await $.tool.call({ tool: TOOL, goal: 'Ship', tasks: [{ title: 'Build', status: 'in_progress' }] })
     expect(seen.opened).toEqual(['goal-meter'])
-
-    await $.command.run({ command: 'goal-meter', args: 'mode panel' } as never)
-    const band = await $.ui.mount({ plugin: 'goal-meter', surface: 'terminal', component: 'AbovePrompt', props: BAND_PROPS })
-    expect((await band.findAll({ type: 'Text' })).length).toBe(0)
 
     await $.command.run({ command: 'goal-meter', args: 'mode status' } as never)
     expect(seen.closed).toEqual(['goal-meter'])
@@ -370,7 +358,7 @@ describe('engine events', () => {
     expect(texts.some(t => t.startsWith('✔'))).toBe(true)
   })
 
-  test('shows the model the main loop runs on, not a subagent\'s', async ($, on) => {
+  test('shows the model nowhere: no status line, nothing in the pane', async ($, on) => {
     const { seen } = setup(on)
     on('turn.step', async function* (_$, e) {
       return { turnId: e.turnId, index: e.index, answer: '', toolUses: [], stopReason: 'end_turn' } as never
@@ -378,10 +366,6 @@ describe('engine events', () => {
     for await (const _ of $.turn.step({ turnId: 't', index: 0, model: 'claude-opus-5-5', effort: 'high', messageCount: 1 } as never)) void _
     for await (const _ of $.turn.step({ turnId: 's', index: 0, model: 'claude-haiku-5-5', messageCount: 1, agentId: 'ag1' } as never)) void _
     expect(seen.statuses.every(s => s === undefined)).toBe(true)
-    const band = await $.ui.mount({ plugin: 'goal-meter', surface: 'terminal', component: 'AbovePrompt', props: BAND_PROPS })
-    const bandTexts = (await band.findAll({ type: 'Text' })).map(t => t.text)
-    expect(bandTexts.some(t => t.includes('Opus 5.5 · high'))).toBe(true)
-    expect(bandTexts.some(t => t.includes('Haiku'))).toBe(false)
     const ui = await $.ui.mount({ plugin: 'goal-meter', surface: 'terminal', component: 'Pane', requestId: 'goal-meter', props: PANE_PROPS })
     const texts = (await ui.findAll({ type: 'Text' })).map(t => t.text)
     expect(texts.some(t => t.includes('Opus'))).toBe(false)

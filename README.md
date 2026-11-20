@@ -4,7 +4,7 @@
 
 **Ein Live-Zielmesser für Claude Code.** Zeigt das große Ziel, jede Hauptaufgabe und Teilaufgabe, was erledigt ist, was gerade läuft, wie lange es gedauert hat und wann es fertig sein wird – in einem Pane neben deiner Session.
 
-[![Version](https://img.shields.io/badge/version-0.7.0--de.3-6366f1.svg)](.claude-plugin/plugin.json)
+[![Version](https://img.shields.io/badge/version-0.7.0--de.4-6366f1.svg)](.claude-plugin/plugin.json)
 [![License: MIT](https://img.shields.io/badge/license-MIT-22c55e.svg)](LICENSE)
 [![Claude Code mod](https://img.shields.io/badge/Claude%20Code-mod-d97757.svg)](https://claude.com/claude-code)
 
@@ -14,7 +14,7 @@
 
 </div>
 
-> **Deutsche Fassung.** Dieser Fork von [TheerasakPing/goal-meter](https://github.com/TheerasakPing/goal-meter) übersetzt alle Texte im Pane, in der Leiste über dem Prompt und in den Toasts ins Deutsche. Außerdem zeigt diese Fassung keine Statuszeile, das Pane keine Balken, Knöpfe, Modell- oder Kontingent-Anzeige, und sie bringt die Tasks aus dem Mod task-progress mit. Das Vorschaubild (`docs/preview.svg`) zeigt noch die Thai-Texte des Originals.
+> **Deutsche Fassung.** Dieser Fork von [TheerasakPing/goal-meter](https://github.com/TheerasakPing/goal-meter) übersetzt alle Texte im Pane und in den Toasts ins Deutsche. Außerdem zeigt diese Fassung keine Leiste über dem Prompt und keine Statuszeile, das Pane keine Balken, Knöpfe, Modell- oder Kontingent-Anzeige, und sie bringt die Tasks aus dem Mod task-progress mit. Das Vorschaubild (`docs/preview.svg`) zeigt noch die Thai-Texte des Originals.
 
 ## Funktionen
 
@@ -35,8 +35,6 @@
 **Kosten und Kontingent**
 
 - **Kosten je Ziel und je Aufgabe**, aus den Ausgaben der Session zwischen Start und Ende.
-- **Nutzungskontingent.** Dein 5-Stunden- und Wochenlimit bei Claude in einer Zeile, mit verbrauchtem Anteil und Zeit bis zum Zurücksetzen.
-- **Kontingent-Prognose.** Aus dem Anstieg jedes Fensters in diesem Zeitraum: `5 Std. leer um 15:40`. Eine rote Warnung erscheint, wenn ein Fenster leer wäre, bevor das Ziel erreicht ist.
 - **Kontingent-Hinweise** bei 80 % und 90 %, als Toast und Ton, einmal je Zeitraum.
 
 **Tasks** (übernommen aus dem Mod task-progress)
@@ -48,7 +46,7 @@
 
 **Alles andere**
 
-- **Subagents.** Agents, die Claude startet, erscheinen im Pane, solange sie laufen, und ihre Anzahl in der Leiste.
+- **Subagents.** Agents, die Claude startet, erscheinen im Pane, solange sie laufen.
 - **Bericht und Verlauf.** `/goal-meter report` liefert eine Markdown-Zusammenfassung fürs Standup; `/goal-meter history` listet erreichte Ziele mit Zeit und Kosten.
 - **Bleibt erhalten.** Ein laufendes Ziel wird in eine neue Session übernommen.
 - **Knöpfe.** Im Pane bittet ein Klick auf eine Aufgabe Claude, damit weiterzumachen; Pause, Modus und Ton stellst du per Befehl ein.
@@ -112,17 +110,15 @@ Gib Claude eine beliebige Aufgabe mit mehreren Schritten. Der Messer füllt sich
 | `/goal-meter deadline 17:00` | Frist setzen (`off` entfernt sie) |
 | `/goal-meter report` | Markdown-Zusammenfassung des Ziels |
 | `/goal-meter history` | Bisher erreichte Ziele |
-| `/goal-meter mode status` · `panel` · `both` | Leiste über dem Prompt an (`status`, `both`) oder aus (`panel`); das Pane gibt es in `panel` und `both` (Standard `both`) |
+| `/goal-meter mode status` · `panel` · `both` | `status` schaltet das Pane ab, `panel` und `both` lassen es an (Standard `both`) |
 | `/goal-meter sound on` · `off` | Töne für erreichtes Ziel und Kontingent-Hinweise |
-| `/goal-meter hide` | Leiste über dem Prompt ausblenden |
 | `/goal-meter pane` | Ganzes Pane öffnen |
 | `/goal-meter clear` | Ziel löschen |
 | `/goal-meter help` | Befehle auflisten |
 
-Modus und Ton-Einstellung bleiben über Sessions hinweg erhalten. Der Messer erscheint an bis zu zwei Stellen:
+Modus und Ton-Einstellung bleiben über Sessions hinweg erhalten. Der Messer erscheint nur im Pane:
 
-- **Über dem Prompt**, als zweizeilige Leiste: Ziel, gestapelter Fortschrittsbalken, ETA, laufende Aufgabe, laufende Agents, Frist und Kontingent, dazu eine rote Zeile, wenn ein Kontingent vorher leer wäre.
-- **In einem Pane**, der ganze Messer mit allen Aufgaben und Teilaufgaben, Kosten je Aufgabe, und Agents. Kontingent und Context zeigt das Pane in dieser Fassung nicht; dafür gibt es die Leiste. Es öffnet sich von selbst, wenn im Modus `panel` oder `both` ein Ziel beginnt, oder jederzeit mit `/goal-meter pane`.
+- **In einem Pane**, der ganze Messer mit allen Aufgaben und Teilaufgaben, Kosten je Aufgabe, und Agents. Kontingent, Context und Modell zeigt diese Fassung nicht; nur die Kontingent-Hinweise kommen weiter als Toast. Es öffnet sich von selbst, wenn im Modus `panel` oder `both` ein Ziel beginnt, oder jederzeit mit `/goal-meter pane`.
 
 Im Pane bittet ein Klick auf eine Aufgabe Claude, damit weiterzumachen.
 
@@ -177,7 +173,7 @@ claude plugin test .           # hooks/*.test.tsx ausführen
 hooks/
   hooks.json         verweist auf register.tsx
   register.tsx       Events, Tools, der Befehl, Zustand und die Hooks der beiden Ansichten
-  views.tsx          die Leiste über dem Prompt und das Pane
+  views.tsx          das Pane
   tasks.ts           Tasks: Bash-Zeilen, Gate-Tool, ETA-Verlauf (Store-Key runHistory)
   meter.ts           reine Logik: Zusammenführen, Fortschritt, aktive Zeit, ETA, Frist, Balkenabschnitte
   quota.ts           Kontingent-Messungen, Prognose und Hinweise
