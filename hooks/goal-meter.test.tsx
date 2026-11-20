@@ -99,7 +99,7 @@ describe('pane', () => {
       expect(designBar?.text.length).toBeGreaterThan(0)
     })
 
-    test(`shows the 5-hour and weekly quota on one row on ${surface}`, async ($, on) => {
+    test(`shows context and cost but no quota row on ${surface}`, async ($, on) => {
       setup(on, {
         percent: 38,
         cost: 1.24,
@@ -110,13 +110,10 @@ describe('pane', () => {
       })
       const ui = await $.ui.mount({ plugin: 'goal-meter', surface, component: 'Pane', requestId: 'goal-meter', props: PANE_PROPS })
       const texts = (await ui.findAll({ type: 'Text' })).map(t => t.text)
-      expect(texts).toContain('5 Std. ')
-      expect(texts).toContain(' 47%')
-      expect(texts).toContain(' ↻2h13m')
-      expect(texts).toContain('  Woche ')
-      expect(texts).toContain(' 24%')
-      expect(texts).toContain(' ↻3d4h')
       expect(texts).toContain('context 38% · $1.24')
+      expect(texts.some(t => t.includes('Kontingent'))).toBe(false)
+      expect(texts).not.toContain('5 Std. ')
+      expect(texts).not.toContain('  Woche ')
     })
 
     test(`pause button and task buttons work on ${surface}`, async ($, on) => {

@@ -7,7 +7,6 @@ import {
   estimate,
   formatClock,
   formatDuration,
-  formatSpan,
   formatUsd,
   modelText,
   progress,
@@ -178,52 +177,15 @@ export const Band = (v: View) => {
 
 // --- pane --------------------------------------------------------------------
 
+// Pane footer: context and cost only. The quota row lives in the band and the status line.
 const Quota = (v: View) => {
-  const { Box, Text } = v.els
-  const limits = v.usage?.rateLimits ?? []
-  const perLimit = (l: { kind: string }) => displayWidth(quotaLabel(l.kind)) + 16
-  const fixed = 7 + limits.reduce((sum, l) => sum + perLimit(l), 0)
-  const quotaBar = Math.max(6, Math.floor((v.cols - fixed) / Math.max(1, limits.length)))
-  const forecasts = limits.flatMap(limit => {
-    const at = exhaustAt(v.samples, limit, v.now)
-    return at === null ? [] : [`${quotaLabel(limit.kind)} leer um ${formatClock(at)}`]
-  })
+  const { Text } = v.els
   const extras = [
     v.usage?.context.percent !== undefined ? `context ${Math.round(v.usage.context.percent)}%` : '',
     v.usage?.cost !== undefined ? formatUsd(v.usage.cost.usd) : '',
   ].filter(Boolean)
 
-  return (
-    <Box flexDirection="column">
-      <Box>
-        <Text color={PALETTE.header} bold>
-          {'Kontingent '}
-        </Text>
-        {limits.length === 0 && <Text dimColor>noch keine Daten (erste Antwort abwarten oder kein Abo)</Text>}
-        {limits.map((limit, k) => {
-          const used = Math.min(100, Math.max(0, limit.percentUsed))
-          const cells = Math.round((used / 100) * quotaBar)
-          const color = gradientAt(1 - used / 100)
-          const resetIn = limit.resetsAt === undefined ? NaN : Date.parse(limit.resetsAt) - v.now
-          return (
-            <Box>
-              <Text>{`${k > 0 ? '  ' : ''}${quotaLabel(limit.kind)} `}</Text>
-              <Text color={color}>{'█'.repeat(cells)}</Text>
-              <Text color="subtle">{'░'.repeat(quotaBar - cells)}</Text>
-              <Text bold color={color}>{` ${Math.round(limit.percentUsed)}%`}</Text>
-              <Text dimColor>{Number.isFinite(resetIn) ? ` ↻${formatSpan(resetIn)}` : ''}</Text>
-            </Box>
-          )
-        })}
-      </Box>
-      {(extras.length > 0 || forecasts.length > 0) && <Text dimColor>{[...extras, ...forecasts].join(' · ')}</Text>}
-      {quotaWarnings(v).map(w => (
-        <Text color={WARN} bold>
-          {`! Kontingent ${quotaLabel(w.kind)} evtl. leer um ${formatClock(w.at)}, vor dem Ziel`}
-        </Text>
-      ))}
-    </Box>
-  )
+  return extras.length > 0 ? <Text dimColor>{extras.join(' · ')}</Text> : null
 }
 
 const Agents = (v: View) => {
