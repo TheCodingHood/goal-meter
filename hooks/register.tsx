@@ -3,13 +3,11 @@ import type { EngineInterface, Register, SessionUsage } from 'claude-code'
 
 import type { Agent, Goal, HistoryEntry, MainTask, Mode, ModelInfo } from '../types'
 import {
-  deadlineState,
   estimate,
   etaFactor,
   formatClock,
   formatDuration,
   mergeTasks,
-  modelText,
   newGoal,
   notePrediction,
   parseDeadline,
@@ -132,53 +130,10 @@ const playSound = async ($: EngineInterface, asset: string): Promise<void> => {
 
 // --- status line ---------------------------------------------------------------
 
-const statusLine = (
-  goal: Goal | null,
-  now: number,
-  usage: SessionUsage | null,
-  factor: number,
-  agents: readonly Agent[],
-  model: ModelInfo | null,
-): string | undefined => {
-  const quota = (usage?.rateLimits ?? []).map(l => `${quotaLabel(l.kind)} ${Math.round(l.percentUsed)}%`).join(' · ')
-  const tail = [quota === '' ? '' : goal === null ? `Kontingent ${quota}` : quota, model === null ? '' : modelText(model)]
-    .filter(Boolean)
-    .join(' | ')
-  if (goal === null) return tail === '' ? undefined : tail
-  const parts = [goalStatus(goal, now, factor)]
-  const running = agents.filter(a => a.doneAt === null).length
-  if (running > 0) parts.push(`agent ${running}`)
-  const deadline = deadlineState(goal, now, factor)
-  if (deadline.kind === 'late') parts.push(`Frist verfehlt um ~${formatDuration(deadline.byMs)}`)
-
-  return tail === '' ? parts.join(' · ') : `${parts.join(' · ')} | ${tail}`
-}
-
-const goalStatus = (goal: Goal, now: number, factor: number): string => {
-  const { done, total, ratio } = progress(goal)
-  if (goal.doneAt !== null) return `Goal: ${goal.title} · erledigt ✔`
-  const { remainingMs, etaAt } = estimate(goal, now, factor)
-  const eta = goal.isPaused ? 'Pause' : etaAt === null || remainingMs === null ? 'ETA –' : `ETA ${formatClock(etaAt)}`
-  const current = goal.tasks.find(task => task.status === 'in_progress')
-  const doing = current === undefined ? '' : ` · ◐ ${current.title}`
-
-  return `Goal ${Math.round(ratio * 100)}% (${done}/${total})${doing} · ${eta}`
-}
-
-const refreshStatus = async ($: EngineInterface, usage?: SessionUsage | null): Promise<void> => {
-  if (!hasStatus(await read($, modeAtom))) {
-    $.ui.status(undefined)
-    return
-  }
-  const text = statusLine(
-    await read($, goalAtom),
-    await $.clock.now(),
-    usage === undefined ? await usageOf($) : usage,
-    await read($, etaFactorAtom),
-    await read($, agentsAtom),
-    await read($, modelAtom),
-  )
-  $.ui.status(text)
+// This fork shows no status line: the pane carries the meter. Clearing it on every
+// refresh also removes a line an earlier version left behind.
+const refreshStatus = async ($: EngineInterface, _usage?: SessionUsage | null): Promise<void> => {
+  $.ui.status(undefined)
 }
 
 const openPane = ($: EngineInterface) => $.ui.open({ id: PANE, title: PANE_TITLE }).catch(() => undefined)

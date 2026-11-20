@@ -377,7 +377,11 @@ describe('engine events', () => {
     })
     for await (const _ of $.turn.step({ turnId: 't', index: 0, model: 'claude-opus-5-5', effort: 'high', messageCount: 1 } as never)) void _
     for await (const _ of $.turn.step({ turnId: 's', index: 0, model: 'claude-haiku-5-5', messageCount: 1, agentId: 'ag1' } as never)) void _
-    expect(seen.statuses.at(-1)).toBe('Opus 5.5 · high')
+    expect(seen.statuses.every(s => s === undefined)).toBe(true)
+    const band = await $.ui.mount({ plugin: 'goal-meter', surface: 'terminal', component: 'AbovePrompt', props: BAND_PROPS })
+    const bandTexts = (await band.findAll({ type: 'Text' })).map(t => t.text)
+    expect(bandTexts.some(t => t.includes('Opus 5.5 · high'))).toBe(true)
+    expect(bandTexts.some(t => t.includes('Haiku'))).toBe(false)
     const ui = await $.ui.mount({ plugin: 'goal-meter', surface: 'terminal', component: 'Pane', requestId: 'goal-meter', props: PANE_PROPS })
     const texts = (await ui.findAll({ type: 'Text' })).map(t => t.text)
     expect(texts.some(t => t.includes('Opus'))).toBe(false)

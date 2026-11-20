@@ -4,7 +4,7 @@
 
 **Ein Live-Zielmesser für Claude Code.** Zeigt das große Ziel, jede Hauptaufgabe und Teilaufgabe, was erledigt ist, was gerade läuft, wie lange es gedauert hat und wann es fertig sein wird – in einem Pane neben deiner Session.
 
-[![Version](https://img.shields.io/badge/version-0.7.0--de.2-6366f1.svg)](.claude-plugin/plugin.json)
+[![Version](https://img.shields.io/badge/version-0.7.0--de.3-6366f1.svg)](.claude-plugin/plugin.json)
 [![License: MIT](https://img.shields.io/badge/license-MIT-22c55e.svg)](LICENSE)
 [![Claude Code mod](https://img.shields.io/badge/Claude%20Code-mod-d97757.svg)](https://claude.com/claude-code)
 
@@ -14,7 +14,7 @@
 
 </div>
 
-> **Deutsche Fassung.** Dieser Fork von [TheerasakPing/goal-meter](https://github.com/TheerasakPing/goal-meter) übersetzt alle Texte im Pane, in der Leiste über dem Prompt, in der Statuszeile und in den Toasts ins Deutsche. Funktionen und Logik sind unverändert. Das Vorschaubild (`docs/preview.svg`) zeigt noch die Thai-Texte des Originals.
+> **Deutsche Fassung.** Dieser Fork von [TheerasakPing/goal-meter](https://github.com/TheerasakPing/goal-meter) übersetzt alle Texte im Pane, in der Leiste über dem Prompt und in den Toasts ins Deutsche. Außerdem zeigt diese Fassung keine Statuszeile, das Pane keine Balken, Knöpfe, Modell- oder Kontingent-Anzeige, und sie bringt die Tasks aus dem Mod task-progress mit. Das Vorschaubild (`docs/preview.svg`) zeigt noch die Thai-Texte des Originals.
 
 ## Funktionen
 
@@ -112,18 +112,17 @@ Gib Claude eine beliebige Aufgabe mit mehreren Schritten. Der Messer füllt sich
 | `/goal-meter deadline 17:00` | Frist setzen (`off` entfernt sie) |
 | `/goal-meter report` | Markdown-Zusammenfassung des Ziels |
 | `/goal-meter history` | Bisher erreichte Ziele |
-| `/goal-meter mode status` · `panel` · `both` | Wo der Messer erscheint (Standard `both`) |
+| `/goal-meter mode status` · `panel` · `both` | Leiste über dem Prompt an (`status`, `both`) oder aus (`panel`); das Pane gibt es in `panel` und `both` (Standard `both`) |
 | `/goal-meter sound on` · `off` | Töne für erreichtes Ziel und Kontingent-Hinweise |
-| `/goal-meter hide` | Leiste über dem Prompt ausblenden (die Statuszeile bleibt) |
+| `/goal-meter hide` | Leiste über dem Prompt ausblenden |
 | `/goal-meter pane` | Ganzes Pane öffnen |
 | `/goal-meter clear` | Ziel löschen |
 | `/goal-meter help` | Befehle auflisten |
 
-Modus und Ton-Einstellung bleiben über Sessions hinweg erhalten. Der Messer erscheint an bis zu drei Stellen:
+Modus und Ton-Einstellung bleiben über Sessions hinweg erhalten. Der Messer erscheint an bis zu zwei Stellen:
 
 - **Über dem Prompt**, als zweizeilige Leiste: Ziel, gestapelter Fortschrittsbalken, ETA, laufende Aufgabe, laufende Agents, Frist und Kontingent, dazu eine rote Zeile, wenn ein Kontingent vorher leer wäre.
-- **In der Statuszeile**, eine Zeile Text: `Goal 52% (5/11) · ◐ Build the API · ETA 14:52 | 5 Std. 47% · Woche 24%`.
-- **In einem Pane**, der ganze Messer mit allen Aufgaben und Teilaufgaben, Kosten je Aufgabe, und Agents. Kontingent und Context zeigt das Pane in dieser Fassung nicht; dafür gibt es Leiste und Statuszeile. Es öffnet sich von selbst, wenn im Modus `panel` oder `both` ein Ziel beginnt, oder jederzeit mit `/goal-meter pane`.
+- **In einem Pane**, der ganze Messer mit allen Aufgaben und Teilaufgaben, Kosten je Aufgabe, und Agents. Kontingent und Context zeigt das Pane in dieser Fassung nicht; dafür gibt es die Leiste. Es öffnet sich von selbst, wenn im Modus `panel` oder `both` ein Ziel beginnt, oder jederzeit mit `/goal-meter pane`.
 
 Im Pane bittet ein Klick auf eine Aufgabe Claude, damit weiterzumachen.
 
