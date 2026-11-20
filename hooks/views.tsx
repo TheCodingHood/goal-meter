@@ -1,6 +1,6 @@
 import type { Elements, SessionUsage } from 'claude-code'
 
-import type { Agent, Goal, Mode, ModelInfo, QuotaSample, Step } from '../types'
+import type { Agent, Goal, Mode, ModelInfo, QuotaSample, RunStatus, RunStep, RunStepStatus, Step, TaskRun } from '../types'
 import {
   deadlineState,
   displayWidth,
@@ -16,6 +16,7 @@ import {
 } from './meter'
 import { PALETTE, STATUS_COLOR, gradientAt, icon, taskColor } from './palette'
 import { exhaustAt } from './quota'
+import { RUN_GLYPH, isVisible, runFraction, stepFraction } from './tasks'
 
 // Box, Text and Button take the same props on every surface this mod draws on.
 export type Els = Pick<Elements['terminal'], 'Box' | 'Text' | 'Button'>
@@ -30,6 +31,7 @@ export type View = {
   agents: readonly Agent[]
   factor: number
   model: ModelInfo | null
+  runs: readonly TaskRun[]
 }
 
 export type Actions = {
@@ -205,6 +207,152 @@ const Agents = (v: View) => {
   )
 }
 
+// --- Tasks: long Bash calls and gates, in the meter's look -----------------------
+
+const RUN_COLOR: Record<RunStepStatus | RunStatus, string> = {
+  done: PALETTE.done,
+  running: PALETTE.running,
+  pending: PALETTE.pending,
+  failed: WARN,
+  skipped: 'subtle',
+  cancelled: 'subtle',
+}
+
+const runGlyph = (status: RunStepStatus | RunStatus, now: number): string =>
+  status === 'running' ? icon('in_progress', now) : RUN_GLYPH[status]
+
+// A bar in the meter's colors; without an estimate a block walks the track.
+const RunBar = (v: View, frac: number | undefined, width: number, key: string) => {
+  const { Box, Text } = v.els
+  const w = Math.max(4, width)
+  if (frac === undefined) {
+    const pos = Math.floor(v.now / 250) % (w + 3)
+    const from = Math.max(0, pos - 3)
+    const to = Math.min(w, pos)
+    return (
+      <Box key={key}>
+        <Text color="subtle">{'░'.repeat(from)}</Text>
+        <Text color={PALETTE.running}>{'█'.repeat(Math.max(0, to - from))}</Text>
+        <Text color="subtle">{'░'.repeat(w - Math.max(from, to))}</Text>
+      </Box>
+    )
+  }
+  const filled = Math.round(Math.min(1, Math.max(0, frac)) * w)
+  return (
+    <Box key={key}>
+      <Text color={gradientAt(frac)}>{'█'.repeat(filled)}</Text>
+      <Text color="subtle">{'░'.repeat(w - filled)}</Text>
+      <Text bold color={gradientAt(frac)}>{` ${Math.floor(frac * 100)}%`}</Text>
+    </Box>
+  )
+}
+
+const runTime = (v: View, r: { startedAt?: number; endedAt?: number; etaMs?: number }, isLive: boolean): string => {
+  if (r.startedAt === undefined) return ''
+  const elapsed = formatDuration((r.endedAt ?? v.now) - r.startedAt)
+  return isLive && r.etaMs ? `${elapsed} / ~${formatDuration(r.etaMs)}` : elapsed
+}
+
+const testsOf = (s: RunStep): string =>
+  s.passed + s.failed > 0 ? ` · ${s.passed}${s.expected ? `/${s.expected}` : ''} ✔${s.failed ? ` ${s.failed} ✗` : ''}` : ''
+
+const RunningRun = (v: View, r: TaskRun) => {
+  const { Box, Text } = v.els
+  const barW = Math.max(8, v.cols - 8)
+  const who = r.agentId ? ' · Subagent' : ''
+  const doneCount = r.steps.filter(s => s.status === 'done').length
+  const meta =
+    r.kind === 'gate'
+      ? `${doneCount}/${r.steps.length} Schritte · ${runTime(v, r, true)}${who}`
+      : `${runTime(v, r, true)}${who}${r.etaMs ? '' : ' · erster Lauf, keine ETA'}`
+  const command = r.kind === 'bash' ? r.steps[0]?.command : undefined
+
+  return (
+    <Box key={r.id} flexDirection="column">
+      <Box>
+        <Text color={PALETTE.running}>{`${runGlyph('running', v.now)} `}</Text>
+        <Text bold color="claude" wrap="truncate-end">
+          {r.title}
+        </Text>
+      </Box>
+      {RunBar(v, runFraction(r, v.now), barW, `${r.id}-bar`)}
+      <Text dimColor wrap="truncate-end">
+        {meta}
+      </Text>
+      {command !== undefined && command !== r.title && (
+        <Text dimColor wrap="truncate-end">
+          {`$ ${command}`}
+        </Text>
+      )}
+      {r.kind === 'gate' &&
+        r.steps.map((s, i) => {
+          const isLive = s.status === 'running'
+          const time = s.startedAt !== undefined ? ` · ${runTime(v, s, isLive)}` : ''
+          return (
+            <Box key={`${r.id}-${i}`} flexDirection="column">
+              <Box>
+                <Text color={RUN_COLOR[s.status]}>{`  ${runGlyph(s.status, v.now)} `}</Text>
+                <Text
+                  color={isLive ? undefined : RUN_COLOR[s.status]}
+                  dimColor={s.status === 'pending' || s.status === 'skipped'}
+                  wrap="truncate-end"
+                >
+                  {s.name}
+                </Text>
+                <Text dimColor>{`${time}${testsOf(s)}`}</Text>
+              </Box>
+              {isLive && (
+                <Box>
+                  <Text>{'    '}</Text>
+                  {RunBar(v, stepFraction(s, v.now), Math.max(6, barW - 4), `${r.id}-${i}-bar`)}
+                </Box>
+              )}
+              {isLive && s.note && (
+                <Text dimColor wrap="truncate-end">
+                  {`    ${s.note}`}
+                </Text>
+              )}
+            </Box>
+          )
+        })}
+    </Box>
+  )
+}
+
+export const Tasks = (v: View) => {
+  const { Box, Text } = v.els
+  const shown = v.runs.filter(r => isVisible(r, v.now))
+  if (shown.length === 0) return null
+  const running = shown.filter(r => r.status === 'running')
+  const finished = shown.filter(r => r.status !== 'running').reverse()
+  const counts = [running.length > 0 ? `${running.length} läuft` : '', finished.length > 0 ? `${finished.length} fertig` : '']
+    .filter(Boolean)
+    .join(' · ')
+
+  return (
+    <Box flexDirection="column">
+      <Box>
+        <Text backgroundColor={PALETTE.header} color={PALETTE.onHeader} bold>
+          {' TASKS '}
+        </Text>
+        <Text dimColor>{` ${counts}`}</Text>
+      </Box>
+      {running.map(r => RunningRun(v, r))}
+      {finished.map(r => (
+        <Box key={r.id}>
+          <Text color={RUN_COLOR[r.status]}>{`${RUN_GLYPH[r.status]} `}</Text>
+          <Text dimColor={r.status === 'done'} color={r.status === 'done' ? undefined : RUN_COLOR[r.status]} wrap="truncate-end">
+            {r.title}
+          </Text>
+          <Text dimColor>
+            {` · ${runTime(v, r, false)}${r.kind === 'gate' ? ` · ${r.steps.filter(s => s.status === 'done').length}/${r.steps.length}` : ''}${r.agentId ? ' · Subagent' : ''}`}
+          </Text>
+        </Box>
+      ))}
+    </Box>
+  )
+}
+
 export const Pane = (v: View, a: Actions) => {
   const { Box, Button, Text } = v.els
   const badge = (
@@ -215,6 +363,15 @@ export const Pane = (v: View, a: Actions) => {
   const goal = v.goal
 
   if (goal === null) {
+    if (v.runs.some(r => isVisible(r, v.now))) {
+      return (
+        <Box flexDirection="column" backgroundColor={PALETTE.paneBg} paddingX={1}>
+          {Tasks(v)}
+          <Text> </Text>
+          {Agents(v)}
+        </Box>
+      )
+    }
     return (
       <Box flexDirection="column" backgroundColor={PALETTE.paneBg} paddingX={1}>
         <Box justifyContent="space-between">
@@ -334,6 +491,8 @@ export const Pane = (v: View, a: Actions) => {
           </Box>
         )
       })}
+      {v.runs.some(r => isVisible(r, v.now)) && <Text> </Text>}
+      {Tasks(v)}
       <Text> </Text>
       {Agents(v)}
     </Box>

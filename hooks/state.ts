@@ -3,6 +3,10 @@ import type { SessionUsage } from 'claude-code'
 import type { Mode } from '../types'
 
 
+// The pane's id and title, shared by the meter and the tasks.
+export const PANE = 'goal-meter'
+export const PANE_TITLE = 'Goal meter'
+
 export const MODES: readonly Mode[] = ['status', 'panel', 'both']
 export const hasStatus = (mode: Mode) => mode !== 'panel'
 export const hasPanel = (mode: Mode) => mode !== 'status'

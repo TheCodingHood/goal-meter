@@ -58,6 +58,41 @@ export type HistoryEntry = {
   predictedTotalMs: number | null
 }
 
+// --- Tasks: long Bash calls and gates, taken over from the task-progress mod
+
+export type RunStatus = 'running' | 'done' | 'failed' | 'cancelled'
+
+export type RunStepStatus = 'pending' | 'running' | 'done' | 'failed' | 'skipped' | 'cancelled'
+
+export type RunStep = {
+  name: string
+  command: string
+  status: RunStepStatus
+  startedAt?: number
+  endedAt?: number
+  /** Expected duration from earlier runs of the same command. */
+  etaMs?: number
+  passed: number
+  failed: number
+  /** Test count of the last run of the same command: the bar's denominator. */
+  expected?: number
+  exitCode?: number | null
+  /** Last output line, shortened. */
+  note?: string
+}
+
+export type TaskRun = {
+  id: string
+  kind: 'bash' | 'gate'
+  title: string
+  status: RunStatus
+  startedAt: number
+  endedAt?: number
+  etaMs?: number
+  agentId?: string
+  steps: RunStep[]
+}
+
 declare module 'claude-code' {
   interface PluginState {
     'goal-meter': {
@@ -72,6 +107,8 @@ declare module 'claude-code' {
       alerted: string[]
       etaFactor: number
       model: ModelInfo | null
+      runs: Shaped<TaskRun[]>
+      runsAutoOpened: boolean
     }
   }
 }

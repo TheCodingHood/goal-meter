@@ -24,6 +24,7 @@ import {
 import type { TaskInput } from './meter'
 import { addSamples, alertKind, alertThreshold, newAlerts } from './quota'
 import { historyTable, report } from './report'
+import { registerTasks, startTasks } from './tasks'
 import {
   MODES,
   STORE,
@@ -31,6 +32,8 @@ import {
   costOf,
   hasPanel,
   hasStatus,
+  PANE,
+  PANE_TITLE,
 } from './state'
 import { Band, Pane } from './views'
 import type { Actions, Els, View } from './views'
@@ -39,6 +42,8 @@ const goalAtom = atom({ plugin: 'goal-meter', key: 'goal' } as const, null)
 const nowAtom = atom({ plugin: 'goal-meter', key: 'now' } as const, 0)
 const isBandHiddenAtom = atom({ plugin: 'goal-meter', key: 'isBandHidden' } as const, false)
 const modeAtom = atom({ plugin: 'goal-meter', key: 'mode' } as const, 'both')
+// The same value tasks.ts keeps: the scan wants every atom written in the file that reads it.
+const runsAtom = atom({ plugin: 'goal-meter', key: 'runs' } as const, [], { shape: 'runs-1' })
 const isMutedAtom = atom({ plugin: 'goal-meter', key: 'isMuted' } as const, false)
 const isTurnRunningAtom = atom({ plugin: 'goal-meter', key: 'isTurnRunning' } as const, false)
 const agentsAtom = atom({ plugin: 'goal-meter', key: 'agents' } as const, [])
@@ -47,7 +52,6 @@ const alertedAtom = atom({ plugin: 'goal-meter', key: 'alerted' } as const, [])
 const etaFactorAtom = atom({ plugin: 'goal-meter', key: 'etaFactor' } as const, 1)
 const modelAtom = atom({ plugin: 'goal-meter', key: 'model' } as const, null)
 
-const PANE = 'goal-meter'
 const TOOL = 'mcp__goal-meter__update'
 
 const SOUND_DONE = 'sounds/done.wav'
@@ -177,7 +181,7 @@ const refreshStatus = async ($: EngineInterface, usage?: SessionUsage | null): P
   $.ui.status(text)
 }
 
-const openPane = ($: EngineInterface) => $.ui.open({ id: PANE, title: 'Goal meter' }).catch(() => undefined)
+const openPane = ($: EngineInterface) => $.ui.open({ id: PANE, title: PANE_TITLE }).catch(() => undefined)
 
 // --- writing the goal -------------------------------------------------------------
 
@@ -236,6 +240,7 @@ const view = async ($: EngineInterface, els: Els, cols: number): Promise<View> =
   agents: await read($, agentsAtom),
   factor: await read($, etaFactorAtom),
   model: await read($, modelAtom),
+  runs: await read($, runsAtom),
 })
 
 const actions = ($: EngineInterface): Actions => ({
@@ -265,6 +270,8 @@ const actions = ($: EngineInterface): Actions => ({
 // --- register ------------------------------------------------------------------
 
 export const register: Register = on => {
+  registerTasks(on)
+
   on('session.start', async ($, e, next) => {
     await $.command.register({
       name: 'goal-meter',
@@ -303,6 +310,7 @@ export const register: Register = on => {
     await update($, quotaSamplesAtom, s => addSamples(s, usage?.rateLimits ?? [], now))
     await refreshStatus($, usage)
     if ((await read($, goalAtom)) !== null && hasPanel(await read($, modeAtom))) void openPane($)
+    await startTasks($)
 
     return next(e)
   })

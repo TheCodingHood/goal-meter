@@ -4,7 +4,7 @@
 
 **Ein Live-Zielmesser für Claude Code.** Zeigt das große Ziel, jede Hauptaufgabe und Teilaufgabe, was erledigt ist, was gerade läuft, wie lange es gedauert hat und wann es fertig sein wird – in einem Pane neben deiner Session.
 
-[![Version](https://img.shields.io/badge/version-0.6.0--de.4-6366f1.svg)](.claude-plugin/plugin.json)
+[![Version](https://img.shields.io/badge/version-0.7.0--de.1-6366f1.svg)](.claude-plugin/plugin.json)
 [![License: MIT](https://img.shields.io/badge/license-MIT-22c55e.svg)](LICENSE)
 [![Claude Code mod](https://img.shields.io/badge/Claude%20Code-mod-d97757.svg)](https://claude.com/claude-code)
 
@@ -38,6 +38,13 @@
 - **Nutzungskontingent.** Dein 5-Stunden- und Wochenlimit bei Claude in einer Zeile, mit verbrauchtem Anteil und Zeit bis zum Zurücksetzen.
 - **Kontingent-Prognose.** Aus dem Anstieg jedes Fensters in diesem Zeitraum: `5 Std. leer um 15:40`. Eine rote Warnung erscheint, wenn ein Fenster leer wäre, bevor das Ziel erreicht ist.
 - **Kontingent-Hinweise** bei 80 % und 90 %, als Toast und Ton, einmal je Zeitraum.
+
+**Tasks** (übernommen aus dem Mod task-progress)
+
+- **Lange Shell-Aufrufe.** Jeder Bash-Aufruf ab 3 s bekommt im Pane unter „TASKS“ eine Zeile mit Balken, Laufzeit und ETA aus früheren Läufen desselben Befehls.
+- **Gate-Tool.** `mcp__goal-meter__gate` führt Prüfungen (Tests, Builds, Lint) als benannte Schritte aus, zählt Tests live mit und liefert Claude je Schritt Exit-Code, Dauer, Testzahlen und die letzten Ausgabezeilen. Befehle laufen vorher durch die Bash-Erlaubnisregeln.
+- **Öffnet von selbst.** Sobald ein Task sichtbar wird, öffnet sich das Pane einmal pro Session, auch ohne Ziel; jedes Gate öffnet es erneut (nicht im Modus `status`).
+- Es bleiben die letzten 12 fertigen Läufe; ✔ erledigt, ✗ fehlgeschlagen, ■ abgebrochen, – übersprungen.
 
 **Alles andere**
 
@@ -172,12 +179,14 @@ hooks/
   hooks.json         verweist auf register.tsx
   register.tsx       Events, Tools, der Befehl, Zustand und die Hooks der beiden Ansichten
   views.tsx          die Leiste über dem Prompt und das Pane
+  tasks.ts           Tasks: Bash-Zeilen, Gate-Tool, ETA-Verlauf (Store-Key runHistory)
   meter.ts           reine Logik: Zusammenführen, Fortschritt, aktive Zeit, ETA, Frist, Balkenabschnitte
   quota.ts           Kontingent-Messungen, Prognose und Hinweise
   report.ts          /goal-meter report und history als Markdown
   state.ts           gemeinsame Konstanten
   palette.ts         Farben
   goal-meter.test.tsx
+  tasks.test.tsx
 sounds/              done.wav, alert.wav
 types/index.d.ts     der Zustandsvertrag
 ```
