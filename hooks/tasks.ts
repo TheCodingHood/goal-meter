@@ -367,19 +367,27 @@ const GATE_SCHEMA = {
 
 // --- the handlers
 
+async function openTasksPane($: EngineInterface): Promise<void> {
+  const opened = await $.ui.open({ id: PANE, title: PANE_TITLE }).catch((err: unknown) => ({
+    isPlaced: false as const,
+    reason: err instanceof Error ? err.message : String(err),
+  }))
+  if (!opened.isPlaced && !opened.reason.startsWith('no-surface')) $.ui.log(`goal-meter: Pane wartet (${opened.reason})`)
+}
+
 // The pane opens by itself once per session, as soon as a task is visible and the mode allows a pane.
 async function openOnce($: EngineInterface): Promise<void> {
   if (await read($, autoOpenedAtom)) return
   if (!hasPanel(await read($, modeAtom))) return
   await update($, autoOpenedAtom, () => true)
-  await $.ui.open({ id: PANE, title: PANE_TITLE }).catch(() => undefined)
+  await openTasksPane($)
 }
 
 // A gate opens the pane every time it starts, as task-progress did; Bash rows only once.
 async function openForGate($: EngineInterface): Promise<void> {
   if (!hasPanel(await read($, modeAtom))) return
   await update($, autoOpenedAtom, () => true)
-  await $.ui.open({ id: PANE, title: PANE_TITLE }).catch(() => undefined)
+  await openTasksPane($)
 }
 
 /** Called from the meter's session.start: one session.start hook per module. */

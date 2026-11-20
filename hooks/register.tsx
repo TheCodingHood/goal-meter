@@ -136,7 +136,15 @@ const refreshStatus = async ($: EngineInterface, _usage?: SessionUsage | null): 
   $.ui.status(undefined)
 }
 
-const openPane = ($: EngineInterface) => $.ui.open({ id: PANE, title: PANE_TITLE }).catch(() => undefined)
+// Opens the pane; when the surface does not seat it, says why in the transcript
+// (a run with no surface at all stays quiet: the pane waits for one to attach).
+const openPane = async ($: EngineInterface): Promise<void> => {
+  const opened = await $.ui.open({ id: PANE, title: PANE_TITLE }).catch((err: unknown) => ({
+    isPlaced: false as const,
+    reason: err instanceof Error ? err.message : String(err),
+  }))
+  if (!opened.isPlaced && !opened.reason.startsWith('no-surface')) $.ui.log(`goal-meter: Pane wartet (${opened.reason})`)
+}
 
 // --- writing the goal -------------------------------------------------------------
 
@@ -264,7 +272,8 @@ export const register: Register = on => {
     const usage = await usageOf($)
     await update($, quotaSamplesAtom, s => addSamples(s, usage?.rateLimits ?? [], now))
     await refreshStatus($, usage)
-    if ((await read($, goalAtom)) !== null && hasPanel(await read($, modeAtom))) void openPane($)
+    // The pane starts with the session, as the Tasks pane did, goal or not.
+    if (hasPanel(await read($, modeAtom))) void openPane($)
     await startTasks($)
 
     return next(e)

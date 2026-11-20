@@ -149,7 +149,8 @@ describe('tasks: opening the pane', () => {
     })
 
     await start($)
-    expect(opened).toEqual([])
+    expect(opened).toEqual(['goal-meter'])
+    opened.length = 0
     const first = $.tool.call({ tool: 'Bash', command: 'sleep 5', description: 'Build' })
     await first
     await clock.advance(1_000)
@@ -172,11 +173,18 @@ describe('tasks: opening the pane', () => {
     } as never)
 
     await start($)
+    opened.length = 0
     await $.tool.call({ tool: 'Bash', command: 'sleep 5', description: 'Build' })
     await clock.advance(1_000)
     await $.tool.call({ tool: GATE, steps: [{ name: 'Unit', command: 'run unit' }] } as never)
     await $.tool.call({ tool: GATE, steps: [{ name: 'Unit', command: 'run unit' }] } as never)
     expect(opened.filter(id => id === 'goal-meter').length).toBe(3)
+  })
+
+  test('the pane opens with the session, without a goal', async ($, on) => {
+    const { opened } = engine(on, 4_200_000)
+    await start($)
+    expect(opened).toEqual(['goal-meter'])
   })
 
   test('in status mode the pane stays closed', async ($, on) => {
