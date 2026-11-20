@@ -74,10 +74,10 @@ const StackedBar = (v: View, goal: Goal, width: number) => {
 const deadlineText = (v: View, goal: Goal): { text: string; color: string } | null => {
   const d = deadlineState(goal, v.now, v.factor)
   if (d.kind === 'none') return null
-  if (d.kind === 'unknown') return { text: ` · กำหนด ${formatClock(d.at)}`, color: 'subtle' }
-  if (d.kind === 'on-time') return { text: ` · ทันกำหนด ${formatClock(d.at)}`, color: PALETTE.done }
+  if (d.kind === 'unknown') return { text: ` · Frist ${formatClock(d.at)}`, color: 'subtle' }
+  if (d.kind === 'on-time') return { text: ` · Frist hält ${formatClock(d.at)}`, color: PALETTE.done }
 
-  return { text: ` · ช้ากว่ากำหนด ~${formatDuration(d.byMs)}`, color: WARN }
+  return { text: ` · Frist verfehlt um ~${formatDuration(d.byMs)}`, color: WARN }
 }
 
 const runningAgents = (v: View) => v.agents.filter(a => a.doneAt === null)
@@ -122,12 +122,12 @@ export const Band = (v: View) => {
   const isGoalDone = goal.doneAt !== null
   const pctText = ` ${Math.round(ratio * 100)}%`
   const eta = isGoalDone
-    ? ' สำเร็จ ✔'
+    ? ' erreicht ✔'
     : goal.isPaused
-      ? ' หยุดนับ'
+      ? ' Pause'
       : remainingMs === null || etaAt === null
-        ? ' ประเมิน…'
-        : ` เสร็จ ${formatClock(etaAt)}`
+        ? ' schätze…'
+        : ` fertig ${formatClock(etaAt)}`
   const title = truncate(goal.title, Math.min(28, Math.max(8, Math.floor(v.cols / 4))))
   const barWidth = Math.max(10, v.cols - displayWidth(title) - pctText.length - displayWidth(eta) - 3)
   const runIndex = goal.tasks.findIndex(task => task.status === 'in_progress')
@@ -158,8 +158,8 @@ export const Band = (v: View) => {
               </Text>
             </Box>
           )}
-          {current === undefined && <Text dimColor>{`${done}/${total} งานย่อยเสร็จ`}</Text>}
-          {agents.length > 0 && <Text color={PALETTE.remaining}>{` · agent ${agents.length} ตัวกำลังทำ`}</Text>}
+          {current === undefined && <Text dimColor>{`${done}/${total} Teilaufgaben erledigt`}</Text>}
+          {agents.length > 0 && <Text color={PALETTE.remaining}>{` · ${agents.length} Agent(s) aktiv`}</Text>}
           {deadline !== null && <Text color={deadline.color}>{deadline.text}</Text>}
         </Box>
         <Box>
@@ -169,7 +169,7 @@ export const Band = (v: View) => {
       </Box>
       {warnings.map(w => (
         <Text color={WARN} bold>
-          {`! โควต้า ${quotaLabel(w.kind)} อาจหมดราว ${formatClock(w.at)} ก่อนงานเสร็จ`}
+          {`! Kontingent ${quotaLabel(w.kind)} evtl. leer um ${formatClock(w.at)}, vor dem Ziel`}
         </Text>
       ))}
     </Box>
@@ -186,7 +186,7 @@ const Quota = (v: View) => {
   const quotaBar = Math.max(6, Math.floor((v.cols - fixed) / Math.max(1, limits.length)))
   const forecasts = limits.flatMap(limit => {
     const at = exhaustAt(v.samples, limit, v.now)
-    return at === null ? [] : [`${quotaLabel(limit.kind)} หมดราว ${formatClock(at)}`]
+    return at === null ? [] : [`${quotaLabel(limit.kind)} leer um ${formatClock(at)}`]
   })
   const extras = [
     v.usage?.context.percent !== undefined ? `context ${Math.round(v.usage.context.percent)}%` : '',
@@ -197,9 +197,9 @@ const Quota = (v: View) => {
     <Box flexDirection="column">
       <Box>
         <Text color={PALETTE.header} bold>
-          {'โควต้า '}
+          {'Kontingent '}
         </Text>
-        {limits.length === 0 && <Text dimColor>ยังไม่มีข้อมูล (รอการตอบครั้งแรก หรือไม่ได้ใช้ subscription)</Text>}
+        {limits.length === 0 && <Text dimColor>noch keine Daten (erste Antwort abwarten oder kein Abo)</Text>}
         {limits.map((limit, k) => {
           const used = Math.min(100, Math.max(0, limit.percentUsed))
           const cells = Math.round((used / 100) * quotaBar)
@@ -219,7 +219,7 @@ const Quota = (v: View) => {
       {(extras.length > 0 || forecasts.length > 0) && <Text dimColor>{[...extras, ...forecasts].join(' · ')}</Text>}
       {quotaWarnings(v).map(w => (
         <Text color={WARN} bold>
-          {`! โควต้า ${quotaLabel(w.kind)} อาจหมดราว ${formatClock(w.at)} ก่อนงานเสร็จ`}
+          {`! Kontingent ${quotaLabel(w.kind)} evtl. leer um ${formatClock(w.at)}, vor dem Ziel`}
         </Text>
       ))}
     </Box>
@@ -260,17 +260,17 @@ const Controls = (v: View, a: Actions, mode: Mode, isMuted: boolean) => {
   return (
     <Box>
       {v.goal !== null && v.goal.doneAt === null && (
-        <Button key="pause" hotkey="p" label={v.goal.isPaused ? 'นับต่อ' : 'หยุดนับ'} onPress={a.togglePause} />
+        <Button key="pause" hotkey="p" label={v.goal.isPaused ? 'Weiter' : 'Pause'} onPress={a.togglePause} />
       )}
       <Text> </Text>
       <Button
         key="mode"
         hotkey="m"
-        label={`โหมด: ${mode}`}
+        label={`Modus: ${mode}`}
         onPress={() => a.setMode(mode === 'both' ? 'status' : mode === 'status' ? 'panel' : 'both')}
       />
       <Text> </Text>
-      <Button key="sound" hotkey="s" label={isMuted ? 'เสียง: ปิด' : 'เสียง: เปิด'} onPress={a.toggleMute} />
+      <Button key="sound" hotkey="s" label={isMuted ? 'Ton: aus' : 'Ton: an'} onPress={a.toggleMute} />
     </Box>
   )
 }
@@ -290,7 +290,7 @@ export const Pane = (v: View, a: Actions, mode: Mode, isMuted: boolean) => {
         <Box justifyContent="space-between">
           <Box>
             {badge}
-            <Text dimColor> ยังไม่มีเป้าหมาย — /goal-meter &lt;เป้าหมาย&gt;</Text>
+            <Text dimColor> noch kein Ziel — /goal-meter &lt;Ziel&gt;</Text>
           </Box>
           {ModelTag(v, ' ')}
         </Box>
@@ -325,7 +325,7 @@ export const Pane = (v: View, a: Actions, mode: Mode, isMuted: boolean) => {
           <Text bold color={isGoalDone ? PALETTE.done : 'claude'} wrap="truncate-end">
             {` ${goal.title}`}
           </Text>
-          {goal.source === 'tasks' && <Text dimColor> (จาก task list)</Text>}
+          {goal.source === 'tasks' && <Text dimColor> (aus Task-Liste)</Text>}
         </Box>
         {ModelTag(v, ' ')}
       </Box>
@@ -335,24 +335,24 @@ export const Pane = (v: View, a: Actions, mode: Mode, isMuted: boolean) => {
       </Box>
       <Box>
         <Text dimColor>{`${done}/${total} · `}</Text>
-        <Text color={PALETTE.elapsed}>{`ทำงานจริง ${formatDuration(activeMs || elapsedMs)}`}</Text>
-        <Text dimColor>{activeMs > 0 ? ` (ผ่านไป ${formatDuration(elapsedMs)})` : ''}</Text>
+        <Text color={PALETTE.elapsed}>{`Aktiv ${formatDuration(activeMs || elapsedMs)}`}</Text>
+        <Text dimColor>{activeMs > 0 ? ` (gesamt ${formatDuration(elapsedMs)})` : ''}</Text>
         {isGoalDone ? (
-          <Text bold color={PALETTE.done}> · สำเร็จ ✔</Text>
+          <Text bold color={PALETTE.done}> · erreicht ✔</Text>
         ) : goal.isPaused ? (
-          <Text color="subtle"> · หยุดนับอยู่</Text>
+          <Text color="subtle"> · pausiert</Text>
         ) : remainingMs === null || etaAt === null ? (
-          <Text color={PALETTE.remaining}> · ประเมิน…</Text>
+          <Text color={PALETTE.remaining}> · schätze…</Text>
         ) : (
           <Box>
-            <Text color={PALETTE.remaining}>{` · เหลือ ~${formatDuration(remainingMs)}`}</Text>
-            <Text color={PALETTE.eta} bold>{` · เสร็จ ${formatClock(etaAt)}`}</Text>
+            <Text color={PALETTE.remaining}>{` · Rest ~${formatDuration(remainingMs)}`}</Text>
+            <Text color={PALETTE.eta} bold>{` · fertig ${formatClock(etaAt)}`}</Text>
           </Box>
         )}
         {spent !== null && <Text color={PALETTE.header}>{` · ${formatUsd(spent)}`}</Text>}
         {deadline !== null && <Text color={deadline.color}>{deadline.text}</Text>}
       </Box>
-      {v.factor !== 1 && <Text dimColor>{`ETA ปรับตามประวัติ ×${v.factor.toFixed(2)}`}</Text>}
+      {v.factor !== 1 && <Text dimColor>{`ETA nach Verlauf korrigiert ×${v.factor.toFixed(2)}`}</Text>}
       {goal.tasks.map((task, i) => {
         const isOpen = task.status === 'in_progress' && task.subtasks.length > 0
         const title = (

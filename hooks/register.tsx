@@ -53,7 +53,7 @@ const TOOL = 'mcp__goal-meter__update'
 const SOUND_DONE = 'sounds/done.wav'
 const SOUND_ALERT = 'sounds/alert.wav'
 const MAX_AGENTS = 8
-const MIRRORED_TITLE = 'งานใน session นี้'
+const MIRRORED_TITLE = 'Aufgaben dieser Session'
 
 const STEP_SCHEMA = {
   type: 'object',
@@ -137,7 +137,7 @@ const statusLine = (
   model: ModelInfo | null,
 ): string | undefined => {
   const quota = (usage?.rateLimits ?? []).map(l => `${quotaLabel(l.kind)} ${Math.round(l.percentUsed)}%`).join(' · ')
-  const tail = [quota === '' ? '' : goal === null ? `โควต้า ${quota}` : quota, model === null ? '' : modelText(model)]
+  const tail = [quota === '' ? '' : goal === null ? `Kontingent ${quota}` : quota, model === null ? '' : modelText(model)]
     .filter(Boolean)
     .join(' | ')
   if (goal === null) return tail === '' ? undefined : tail
@@ -145,16 +145,16 @@ const statusLine = (
   const running = agents.filter(a => a.doneAt === null).length
   if (running > 0) parts.push(`agent ${running}`)
   const deadline = deadlineState(goal, now, factor)
-  if (deadline.kind === 'late') parts.push(`ช้ากว่ากำหนด ~${formatDuration(deadline.byMs)}`)
+  if (deadline.kind === 'late') parts.push(`Frist verfehlt um ~${formatDuration(deadline.byMs)}`)
 
   return tail === '' ? parts.join(' · ') : `${parts.join(' · ')} | ${tail}`
 }
 
 const goalStatus = (goal: Goal, now: number, factor: number): string => {
   const { done, total, ratio } = progress(goal)
-  if (goal.doneAt !== null) return `Goal: ${goal.title} · เสร็จแล้ว ✔`
+  if (goal.doneAt !== null) return `Goal: ${goal.title} · erledigt ✔`
   const { remainingMs, etaAt } = estimate(goal, now, factor)
-  const eta = goal.isPaused ? 'หยุดนับ' : etaAt === null || remainingMs === null ? 'ETA –' : `ETA ${formatClock(etaAt)}`
+  const eta = goal.isPaused ? 'Pause' : etaAt === null || remainingMs === null ? 'ETA –' : `ETA ${formatClock(etaAt)}`
   const current = goal.tasks.find(task => task.status === 'in_progress')
   const doing = current === undefined ? '' : ` · ◐ ${current.title}`
 
@@ -196,7 +196,7 @@ const commit = async ($: EngineInterface, prev: Goal | null, next: Goal, now: nu
   if (goal.doneAt !== null && (prev === null || prev.doneAt === null || isNew)) {
     const history = await appendHistory($, toHistory(goal, now, cost))
     await update($, etaFactorAtom, () => etaFactor(history))
-    $.ui.toast(`สำเร็จ: ${goal.title} (${formatDuration(estimate(goal, now).activeMs || now - goal.startedAt)})`)
+    $.ui.toast(`Erreicht: ${goal.title} (${formatDuration(estimate(goal, now).activeMs || now - goal.startedAt)})`)
     void playSound($, SOUND_DONE)
   }
   await refreshStatus($)
@@ -239,7 +239,7 @@ const view = async ($: EngineInterface, els: Els, cols: number): Promise<View> =
 })
 
 const actions = ($: EngineInterface): Actions => ({
-  continueTask: title => void $.prompt.submit({ text: `ทำงาน "${title}" ต่อ` }).catch(() => undefined),
+  continueTask: title => void $.prompt.submit({ text: `Mach mit "${title}" weiter` }).catch(() => undefined),
   togglePause: () =>
     void (async () => {
       const goal = await read($, goalAtom)
@@ -367,7 +367,7 @@ export const register: Register = on => {
     if (fresh.length > 0) {
       await update($, alertedAtom, list => [...list, ...fresh].slice(-50))
       const top = fresh.reduce((a, b) => (alertThreshold(b) > alertThreshold(a) ? b : a))
-      $.ui.toast(`โควต้า ${quotaLabel(alertKind(top))} ใช้ไปแล้ว ${alertThreshold(top)}%`)
+      $.ui.toast(`Kontingent ${quotaLabel(alertKind(top))}: ${alertThreshold(top)}% verbraucht`)
       void playSound($, SOUND_ALERT)
     }
     await refreshStatus($, { startedAt: 0, ...e })
@@ -392,7 +392,7 @@ export const register: Register = on => {
     const now = await $.clock.now()
     const cost = costOf(await usageOf($))
     const prev = await read($, goalAtom)
-    const title = input.goal?.trim() || prev?.title || 'เป้าหมาย'
+    const title = input.goal?.trim() || prev?.title || 'Ziel'
     const isNewGoal =
       prev === null ||
       prev.doneAt !== null ||

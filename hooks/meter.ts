@@ -246,9 +246,9 @@ export const slices = (goal: Goal, width: number): Slice[] => {
 }
 
 const QUOTA_LABELS: Record<string, string> = {
-  five_hour: '5 ชม.',
-  seven_day: 'สัปดาห์',
-  spend_limit: 'วงเงิน',
+  five_hour: '5 Std.',
+  seven_day: 'Woche',
+  spend_limit: 'Limit',
 }
 
 export const quotaLabel = (kind: string): string =>
