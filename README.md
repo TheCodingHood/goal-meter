@@ -4,7 +4,7 @@
 
 **Ein Live-Zielmesser für Claude Code.** Zeigt das große Ziel, jede Hauptaufgabe und Teilaufgabe, was erledigt ist, was gerade läuft, wie lange es gedauert hat und wann es fertig sein wird – in einem Pane neben deiner Session.
 
-[![Version](https://img.shields.io/badge/version-0.6.0--de.3-6366f1.svg)](.claude-plugin/plugin.json)
+[![Version](https://img.shields.io/badge/version-0.6.0--de.4-6366f1.svg)](.claude-plugin/plugin.json)
 [![License: MIT](https://img.shields.io/badge/license-MIT-22c55e.svg)](LICENSE)
 [![Claude Code mod](https://img.shields.io/badge/Claude%20Code-mod-d97757.svg)](https://claude.com/claude-code)
 

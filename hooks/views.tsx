@@ -222,7 +222,6 @@ export const Pane = (v: View, a: Actions) => {
             {badge}
             <Text dimColor> noch kein Ziel — /goal-meter &lt;Ziel&gt;</Text>
           </Box>
-          {ModelTag(v, ' ')}
         </Box>
         <Text> </Text>
         {Agents(v)}
@@ -255,7 +254,6 @@ export const Pane = (v: View, a: Actions) => {
           </Text>
           {goal.source === 'tasks' && <Text dimColor> (aus Task-Liste)</Text>}
         </Box>
-        {ModelTag(v, ' ')}
       </Box>
       <Box>
         {StackedBar(v, goal, Math.max(10, v.cols - pctText.length - 1))}

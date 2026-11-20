@@ -376,7 +376,7 @@ describe('engine events', () => {
     expect(seen.statuses.at(-1)).toBe('Opus 5.5 · high')
     const ui = await $.ui.mount({ plugin: 'goal-meter', surface: 'terminal', component: 'Pane', requestId: 'goal-meter', props: PANE_PROPS })
     const texts = (await ui.findAll({ type: 'Text' })).map(t => t.text)
-    expect(texts).toContain(' ◆ Opus 5.5 · high')
+    expect(texts.some(t => t.includes('Opus'))).toBe(false)
     expect((await ui.findAll({ type: 'Box' }))[0]?.props.backgroundColor).toBe(PALETTE.paneBg)
   })
 
