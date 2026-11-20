@@ -124,6 +124,10 @@ describe('pane', () => {
       expect(await ui.find({ key: 'mode' })).toBeUndefined()
       expect(await ui.find({ key: 'sound' })).toBeUndefined()
       expect(await ui.find({ key: 'pause' })).toBeUndefined()
+      const drawn = (await ui.findAll({ type: 'Text' })).map(t => t.text)
+      // No block bar: only the one-cell color chip per task is left.
+      expect(drawn.some(t => /[█░▓]{2,}/.test(t))).toBe(false)
+      expect(drawn.some(t => /^\d+%$/.test(t))).toBe(true)
 
       await ui.press({ key: 'task-2' })
       expect(seen.prompts).toEqual(['Mach mit "Test" weiter'])

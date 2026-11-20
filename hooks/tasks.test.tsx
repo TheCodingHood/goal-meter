@@ -120,6 +120,7 @@ describe('tasks: in the pane', () => {
     expect(all).toContain('✗ ')
     expect(all).toContain('PR')
     expect(all).toContain(' · 8s · 1/3')
+    expect(all.join('').includes('░')).toBe(false)
     await ui.unmount()
   })
 

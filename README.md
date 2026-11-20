@@ -4,7 +4,7 @@
 
 **Ein Live-Zielmesser für Claude Code.** Zeigt das große Ziel, jede Hauptaufgabe und Teilaufgabe, was erledigt ist, was gerade läuft, wie lange es gedauert hat und wann es fertig sein wird – in einem Pane neben deiner Session.
 
-[![Version](https://img.shields.io/badge/version-0.7.0--de.1-6366f1.svg)](.claude-plugin/plugin.json)
+[![Version](https://img.shields.io/badge/version-0.7.0--de.2-6366f1.svg)](.claude-plugin/plugin.json)
 [![License: MIT](https://img.shields.io/badge/license-MIT-22c55e.svg)](LICENSE)
 [![Claude Code mod](https://img.shields.io/badge/Claude%20Code-mod-d97757.svg)](https://claude.com/claude-code)
 
@@ -41,7 +41,7 @@
 
 **Tasks** (übernommen aus dem Mod task-progress)
 
-- **Lange Shell-Aufrufe.** Jeder Bash-Aufruf ab 3 s bekommt im Pane unter „TASKS“ eine Zeile mit Balken, Laufzeit und ETA aus früheren Läufen desselben Befehls.
+- **Lange Shell-Aufrufe.** Jeder Bash-Aufruf ab 3 s bekommt im Pane unter „TASKS“ eine Zeile mit Prozent, Laufzeit und ETA aus früheren Läufen desselben Befehls.
 - **Gate-Tool.** `mcp__goal-meter__gate` führt Prüfungen (Tests, Builds, Lint) als benannte Schritte aus, zählt Tests live mit und liefert Claude je Schritt Exit-Code, Dauer, Testzahlen und die letzten Ausgabezeilen. Befehle laufen vorher durch die Bash-Erlaubnisregeln.
 - **Öffnet von selbst.** Sobald ein Task sichtbar wird, öffnet sich das Pane einmal pro Session, auch ohne Ziel; jedes Gate öffnet es erneut (nicht im Modus `status`).
 - Es bleiben die letzten 12 fertigen Läufe; ✔ erledigt, ✗ fehlgeschlagen, ■ abgebrochen, – übersprungen.

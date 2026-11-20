@@ -221,29 +221,14 @@ const RUN_COLOR: Record<RunStepStatus | RunStatus, string> = {
 const runGlyph = (status: RunStepStatus | RunStatus, now: number): string =>
   status === 'running' ? icon('in_progress', now) : RUN_GLYPH[status]
 
-// A bar in the meter's colors; without an estimate a block walks the track.
-const RunBar = (v: View, frac: number | undefined, width: number, key: string) => {
-  const { Box, Text } = v.els
-  const w = Math.max(4, width)
-  if (frac === undefined) {
-    const pos = Math.floor(v.now / 250) % (w + 3)
-    const from = Math.max(0, pos - 3)
-    const to = Math.min(w, pos)
-    return (
-      <Box key={key}>
-        <Text color="subtle">{'░'.repeat(from)}</Text>
-        <Text color={PALETTE.running}>{'█'.repeat(Math.max(0, to - from))}</Text>
-        <Text color="subtle">{'░'.repeat(w - Math.max(from, to))}</Text>
-      </Box>
-    )
-  }
-  const filled = Math.round(Math.min(1, Math.max(0, frac)) * w)
+// Progress as a number only: block bars wrap on the desktop pane.
+const RunBar = (v: View, frac: number | undefined, _width: number, key: string) => {
+  const { Text } = v.els
+  if (frac === undefined) return null
   return (
-    <Box key={key}>
-      <Text color={gradientAt(frac)}>{'█'.repeat(filled)}</Text>
-      <Text color="subtle">{'░'.repeat(w - filled)}</Text>
-      <Text bold color={gradientAt(frac)}>{` ${Math.floor(frac * 100)}%`}</Text>
-    </Box>
+    <Text key={key} bold color={gradientAt(frac)}>
+      {`${Math.floor(Math.min(1, Math.max(0, frac)) * 100)}%`}
+    </Text>
   )
 }
 
@@ -413,8 +398,7 @@ export const Pane = (v: View, a: Actions) => {
         </Box>
       </Box>
       <Box>
-        {StackedBar(v, goal, Math.max(10, v.cols - pctText.length - 1))}
-        <Text bold color={gradientAt(ratio)}>{pctText}</Text>
+        <Text bold color={gradientAt(ratio)}>{pctText.trim()}</Text>
       </Box>
       <Box>
         <Text dimColor>{`${done}/${total} · `}</Text>
