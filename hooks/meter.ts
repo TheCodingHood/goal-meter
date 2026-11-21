@@ -289,15 +289,25 @@ export type PlanInput = {
 // `advance` closes the running step and starts the next pending one; `done`
 // and `start` name steps by their 1-based place.
 export function planTasks(input: PlanInput, current: TaskInput[]): TaskInput[] {
+  // Subtasks come from the meter tool only; a step the plan closes closes them too.
+  const withStatus = (t: TaskInput, status: TaskInput['status']): TaskInput => ({
+    ...t,
+    status,
+    ...(t.subtasks && status === 'done' ? { subtasks: t.subtasks.map(sub => ({ ...sub, status: 'done' as const })) } : {}),
+  })
   if (Array.isArray(input.items)) {
     return input.items
       .filter(it => typeof it.content === 'string' && it.content.trim() !== '')
-      .map(it => ({ title: String(it.content).trim(), status: toStatus(it.status) }))
+      .map(it => {
+        const title = String(it.content).trim()
+        const old = current.find(t => t.title === title)
+        return withStatus({ title, status: 'pending', ...(old?.subtasks ? { subtasks: old.subtasks } : {}) }, toStatus(it.status))
+      })
   }
   const list = current.map(t => ({ ...t }))
   const set = (i: number, status: TaskInput['status']) => {
     const t = list[i]
-    if (t !== undefined) list[i] = { ...t, status }
+    if (t !== undefined) list[i] = withStatus(t, status)
   }
   if (input.advance === true) {
     const running = list.findIndex(t => t.status === 'in_progress')

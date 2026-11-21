@@ -28,5 +28,5 @@ export const PLAN_TOOL = 'mcp__ccd_turn__update_plan'
 export const GUIDE = [
   '# Goal meter',
   `The person watches a goal meter pane. It mirrors your task list on its own: the app's plan tool (${PLAN_TOOL}), TodoWrite or TaskCreate/TaskUpdate. Keep that list current as the app asks; never call ${TOOL} in its place or before it.`,
-  `Call ${TOOL} only where no such task list exists, or with just \`goal\` to give the meter a one-line title.`,
+  `Call ${TOOL} only where no such task list exists, to give the meter a one-line \`goal\` title, or after the app's list is current to add detail: the same main tasks with their subtasks. The meter keeps those subtasks while the app's list moves on, and a step closed there closes its subtasks.`,
 ].join('\n')

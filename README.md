@@ -4,7 +4,7 @@
 
 **Ein Live-Zielmesser für Claude Code.** Zeigt das große Ziel, jede Hauptaufgabe und Teilaufgabe, was erledigt ist, was gerade läuft, wie lange es gedauert hat und wann es fertig sein wird – in einem Pane neben deiner Session.
 
-[![Version](https://img.shields.io/badge/version-0.7.0--de.8-6366f1.svg)](.claude-plugin/plugin.json)
+[![Version](https://img.shields.io/badge/version-0.7.0--de.9-6366f1.svg)](.claude-plugin/plugin.json)
 [![License: MIT](https://img.shields.io/badge/license-MIT-22c55e.svg)](LICENSE)
 [![Claude Code mod](https://img.shields.io/badge/Claude%20Code-mod-d97757.svg)](https://claude.com/claude-code)
 
@@ -23,7 +23,7 @@
 - **Ziel, Aufgaben und Teilaufgaben.** Oben ein Ziel, darunter die Hauptaufgaben; die Teilaufgaben der laufenden Aufgabe sind als Baum aufgeklappt.
 - **Eine Farbe je Aufgabe**, in ihrer Zeile und in ihrem Abschnitt des gestapelten Fortschrittsbalkens. Erledigtes füllt den Balken, Laufendes blinkt, nicht Begonnenes bleibt grau.
 - **Status auf einen Blick.** `✔` erledigt (grün), `◐` läuft (bernstein, dreht sich), `○` nicht begonnen (grau). Erledigte Teilaufgaben werden durchgestrichen.
-- **Ohne Zutun.** Der Messer folgt der Aufgabenliste, die Claude ohnehin führt: in der Desktop-App dem Plan unter der Nachricht (`update_plan`), sonst `TodoWrite`, `TaskCreate` und `TaskUpdate`. Das Tool `update` braucht Claude nur ohne solche Liste oder für den Titel des Ziels. Der Systemprompt-Abschnitt verlangt es nicht mehr zuerst, damit der Plan im Chat aktuell bleibt.
+- **Ohne Zutun.** Der Messer folgt der Aufgabenliste, die Claude ohnehin führt: in der Desktop-App dem Plan unter der Nachricht (`update_plan`), sonst `TodoWrite`, `TaskCreate` und `TaskUpdate`. Das Tool `update` braucht Claude nur ohne solche Liste, für den Titel des Ziels oder danach für Teilaufgaben: Die bleiben bei gleichnamigen Plan-Schritten erhalten, und ein im Plan erledigter Schritt hakt sie mit ab. Der Systemprompt-Abschnitt verlangt es nicht mehr zuerst, damit der Plan im Chat aktuell bleibt.
 
 **Zeit**
 

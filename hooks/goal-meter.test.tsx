@@ -290,6 +290,33 @@ describe('built-in task list', () => {
     expect(text).not.toContain('Design')
   })
 
+  test('subtasks from the meter tool survive the app plan, and a closed step closes them', async ($, on) => {
+    setup(on)
+    const PLAN = 'mcp__ccd_turn__update_plan'
+    on('tool.call', { tool: PLAN }, () => ({ result: 'Plan shown.' }) as never)
+    const items = (first: string) => [
+      { content: 'Review + Gates', status: first },
+      { content: 'Commit', status: 'pending' },
+    ]
+    await $.tool.call({ tool: PLAN, items: items('in_progress') } as never)
+    await $.tool.call({
+      tool: TOOL,
+      tasks: [
+        { title: 'Review + Gates', status: 'in_progress', subtasks: [{ title: '/code-review', status: 'in_progress' }, { title: 'Fixes', status: 'pending' }] },
+        { title: 'Commit', status: 'pending' },
+      ],
+    })
+    await $.tool.call({ tool: PLAN, items: items('in_progress') } as never)
+    let text = await reportOf($)
+    expect(text).toContain('/code-review')
+    expect(text).toContain('Fixes')
+
+    await $.tool.call({ tool: PLAN, advance: true } as never)
+    text = await reportOf($)
+    expect(text).toContain('- [x] Review + Gates')
+    expect(text).toContain('- [~] Commit')
+  })
+
   test('the system prompt points to the app plan, not to the meter tool first', () => {
     expect(GUIDE).toContain('mcp__ccd_turn__update_plan')
     expect(GUIDE).toContain('never call mcp__goal-meter__update in its place')
