@@ -277,3 +277,35 @@ export const modelLabel = (id: string): string => {
 
 export const modelText = (model: { id: string; effort: string | null }): string =>
   model.effort === null ? modelLabel(model.id) : `${modelLabel(model.id)} · ${model.effort}`
+
+export type PlanInput = {
+  items?: { content?: string; status?: string }[]
+  advance?: boolean
+  done?: number[]
+  start?: number
+}
+
+// The task list after one update_plan call. A full `items` list replaces it;
+// `advance` closes the running step and starts the next pending one; `done`
+// and `start` name steps by their 1-based place.
+export function planTasks(input: PlanInput, current: TaskInput[]): TaskInput[] {
+  if (Array.isArray(input.items)) {
+    return input.items
+      .filter(it => typeof it.content === 'string' && it.content.trim() !== '')
+      .map(it => ({ title: String(it.content).trim(), status: toStatus(it.status) }))
+  }
+  const list = current.map(t => ({ ...t }))
+  const set = (i: number, status: TaskInput['status']) => {
+    const t = list[i]
+    if (t !== undefined) list[i] = { ...t, status }
+  }
+  if (input.advance === true) {
+    const running = list.findIndex(t => t.status === 'in_progress')
+    if (running >= 0) set(running, 'done')
+    const nextUp = list.findIndex((t, i) => i > running && t.status === 'pending')
+    if (nextUp >= 0) set(nextUp, 'in_progress')
+  }
+  for (const n of input.done ?? []) set(n - 1, 'done')
+  if (typeof input.start === 'number') set(input.start - 1, 'in_progress')
+  return list
+}

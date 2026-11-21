@@ -16,6 +16,7 @@ import {
   stopActive,
 } from './meter'
 import { PALETTE, taskColor } from './palette'
+import { GUIDE } from './state'
 import { addSamples, exhaustAt, newAlerts } from './quota'
 import { historyTable, report } from './report'
 
@@ -246,6 +247,53 @@ describe('built-in task list', () => {
     expect(text).not.toContain('Ship it')
     // every task left is done: the goal is reached
     expect(text).toContain('- Finished:')
+  })
+
+  test('mirrors the app plan: a full list, then advance, done and start', async ($, on) => {
+    setup(on)
+    const PLAN = 'mcp__ccd_turn__update_plan'
+    on('tool.call', { tool: PLAN }, () => ({ result: 'Plan shown.' }) as never)
+    await $.tool.call({
+      tool: PLAN,
+      scope: 'first_task',
+      items: [
+        { content: 'Look around', status: 'in_progress' },
+        { content: 'Build it', status: 'pending' },
+        { content: 'Check it', status: 'pending' },
+      ],
+    } as never)
+    let text = await reportOf($)
+    expect(text).toContain('## Aufgaben dieser Session')
+    expect(text).toContain('- [~] Look around')
+    expect(text).toContain('- [ ] Build it')
+
+    await $.tool.call({ tool: PLAN, advance: true } as never)
+    text = await reportOf($)
+    expect(text).toContain('- [x] Look around')
+    expect(text).toContain('- [~] Build it')
+
+    await $.tool.call({ tool: PLAN, done: [2], start: 3 } as never)
+    text = await reportOf($)
+    expect(text).toContain('- [x] Build it')
+    expect(text).toContain('- [~] Check it')
+  })
+
+  test('the app plan replaces the tasks of a meter goal but keeps its title', async ($, on) => {
+    setup(on)
+    const PLAN = 'mcp__ccd_turn__update_plan'
+    on('tool.call', { tool: PLAN }, () => ({ result: 'Plan shown.' }) as never)
+    await $.tool.call({ tool: TOOL, goal: 'Ship login', tasks: LOGIN })
+    await $.tool.call({ tool: PLAN, items: [{ content: 'Only step', status: 'in_progress' }] } as never)
+    const text = await reportOf($)
+    expect(text).toContain('## Ship login')
+    expect(text).toContain('- [~] Only step')
+    expect(text).not.toContain('Design')
+  })
+
+  test('the system prompt points to the app plan, not to the meter tool first', () => {
+    expect(GUIDE).toContain('mcp__ccd_turn__update_plan')
+    expect(GUIDE).toContain('never call mcp__goal-meter__update in its place')
+    expect(GUIDE).not.toContain('call mcp__goal-meter__update first')
   })
 
   test('leaves a goal the meter tool writes alone', async ($, on) => {

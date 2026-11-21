@@ -17,9 +17,10 @@ import {
   startActive,
   stopActive,
   toHistory,
+  planTasks,
   toStatus,
 } from './meter'
-import type { TaskInput } from './meter'
+import type { PlanInput, TaskInput } from './meter'
 import { addSamples, alertKind, alertThreshold, newAlerts } from './quota'
 import { historyTable, report } from './report'
 import { registerTasks, startTasks } from './tasks'
@@ -30,7 +31,10 @@ import {
   costOf,
   hasPanel,
   hasStatus,
+  GUIDE,
   MAX_SAVED_GOALS,
+  PLAN_TOOL,
+  TOOL,
   PANE,
   PANE_TITLE,
 } from './state'
@@ -53,7 +57,6 @@ const modelAtom = atom({ plugin: 'goal-meter', key: 'model' } as const, null)
 const isDoneTasksCollapsedAtom = atom({ plugin: 'goal-meter', key: 'isDoneTasksCollapsed' } as const, false)
 const isDoneRunsCollapsedAtom = atom({ plugin: 'goal-meter', key: 'isDoneRunsCollapsed' } as const, false)
 
-const TOOL = 'mcp__goal-meter__update'
 
 const SOUND_DONE = 'sounds/done.wav'
 const SOUND_ALERT = 'sounds/alert.wav'
@@ -84,12 +87,6 @@ const INPUT_SCHEMA = {
     },
   },
 }
-
-const GUIDE = [
-  '# Goal meter',
-  `The person watches a goal meter. For any multi-step task, call ${TOOL} first with the big goal and the main tasks (each with subtasks where useful), all "pending" or "in_progress".`,
-  'Call it again, with the full list, every time a task or subtask starts or finishes, so the colors, elapsed time and ETA stay true. Mark everything "done" when the goal is reached.',
-].join('\n')
 
 const HELP = [
   '/goal-meter                 show the meter',
@@ -191,15 +188,20 @@ const commit = async ($: EngineInterface, prev: Goal | null, next: Goal, now: nu
 }
 
 // The built-in task list drives the meter unless the meter's own tool is in use.
-const mirror = async ($: EngineInterface, edit: (tasks: MainTask[], now: number, cost: number | null) => MainTask[]): Promise<void> => {
+const mirror = async (
+  $: EngineInterface,
+  edit: (tasks: MainTask[], now: number, cost: number | null) => MainTask[],
+  isPlan = false,
+): Promise<void> => {
   const prev = await read($, goalAtom)
-  if (prev !== null && prev.source === 'meter' && prev.doneAt === null) return
+  // The app's plan wins over the meter tool: it is the list Claude has to keep anyway.
+  if (!isPlan && prev !== null && prev.source === 'meter' && prev.doneAt === null) return
   const now = await $.clock.now()
   const cost = costOf(await usageOf($))
   const base =
     prev === null || prev.doneAt !== null
       ? newGoal(MIRRORED_TITLE, 'tasks', now, cost, await read($, isTurnRunningAtom))
-      : { ...prev, source: 'tasks' as const }
+      : { ...prev, source: isPlan && prev.source === 'meter' ? prev.source : ('tasks' as const) }
   const tasks = edit(base.tasks, now, cost)
   if (tasks.length === 0 && prev === null) return
   await commit($, prev, { ...base, tasks }, now, cost)
@@ -267,7 +269,7 @@ export const register: Register = on => {
     await $.tool.register({
       name: 'update',
       description:
-        'Update the goal meter the person watches: the big goal, main tasks and subtasks with their status (pending, in_progress, done). Send the full task list every call.',
+        'Update the goal meter the person watches: the big goal, main tasks and subtasks with their status (pending, in_progress, done). Send the full task list every call. Where the app has its own task list (update_plan, TodoWrite), the meter mirrors that one: keep it current instead and call this only to set the goal title.',
       inputSchema: INPUT_SCHEMA,
       isDeferred: false,
     })
@@ -404,6 +406,19 @@ export const register: Register = on => {
 
     return { result: `Goal meter updated: ${done}/${total} done.` }
   })
+
+  // The desktop app's plan: a full list, or a step forward by index (1-based).
+  on('tool.call', { tool: PLAN_TOOL }, async ($, e, next) => {
+    const ran = await next(e)
+    if (ran.isError !== true && ran.deny === undefined) {
+      const input = e as unknown as PlanInput
+      await mirror($, (tasks, now, cost) => mergeTasks(planTasks(input, tasks.map(asInput)), tasks, now, cost), true).catch(
+        () => undefined,
+      )
+    }
+
+    return ran
+  }).catch(($, e, next) => next(e))
 
   on('tool.call', { tool: 'TodoWrite' }, async ($, e, next) => {
     const ran = await next(e)
