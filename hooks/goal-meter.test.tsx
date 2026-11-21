@@ -317,6 +317,30 @@ describe('built-in task list', () => {
     expect(text).toContain('- [~] Commit')
   })
 
+  test('wrap_up checks off a plan the turn never advanced, but not a meter goal', async ($, on) => {
+    setup(on)
+    const PLAN = 'mcp__ccd_turn__update_plan'
+    const WRAP = 'mcp__ccd_turn__wrap_up'
+    on('tool.call', { tool: PLAN }, () => ({ result: 'Plan shown.' }) as never)
+    on('tool.call', { tool: WRAP }, () => ({ result: 'Shown.' }) as never)
+    await $.tool.call({
+      tool: PLAN,
+      items: [
+        { content: 'Find the rule', status: 'in_progress' },
+        { content: 'Change it', status: 'pending' },
+      ],
+    } as never)
+    await $.tool.call({ tool: WRAP, recap: 'Done.' } as never)
+    let text = await reportOf($)
+    expect(text).toContain('- [x] Find the rule')
+    expect(text).toContain('- [x] Change it')
+
+    await $.tool.call({ tool: TOOL, goal: 'Ship login', tasks: LOGIN })
+    await $.tool.call({ tool: WRAP, recap: 'Turn over.' } as never)
+    text = await reportOf($)
+    expect(text).toContain('- [ ] Test')
+  })
+
   test('the system prompt points to the app plan, not to the meter tool first', () => {
     expect(GUIDE).toContain('mcp__ccd_turn__update_plan')
     expect(GUIDE).toContain('never call mcp__goal-meter__update in its place')

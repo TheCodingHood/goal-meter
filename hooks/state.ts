@@ -23,6 +23,8 @@ export const costOf = (usage: SessionUsage | null): number | null => usage?.cost
 export const TOOL = 'mcp__goal-meter__update'
 // The desktop app's task list under each message.
 export const PLAN_TOOL = 'mcp__ccd_turn__update_plan'
+// Closes the turn and checks off the whole plan.
+export const WRAP_TOOL = 'mcp__ccd_turn__wrap_up'
 
 // The system prompt section: the meter follows the task list Claude keeps anyway.
 export const GUIDE = [

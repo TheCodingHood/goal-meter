@@ -33,6 +33,8 @@ export type Goal = {
   costStart: number | null
   // Total active time predicted when the goal first passed half way, to calibrate later ETAs.
   predictedTotalMs: number | null
+  /** The task list comes from the app's plan (update_plan), so wrap_up closes it. */
+  fromPlan?: boolean
 }
 
 export type Agent = {

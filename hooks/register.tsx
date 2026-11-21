@@ -34,6 +34,7 @@ import {
   GUIDE,
   MAX_SAVED_GOALS,
   PLAN_TOOL,
+  WRAP_TOOL,
   TOOL,
   PANE,
   PANE_TITLE,
@@ -204,7 +205,7 @@ const mirror = async (
       : { ...prev, source: isPlan && prev.source === 'meter' ? prev.source : ('tasks' as const) }
   const tasks = edit(base.tasks, now, cost)
   if (tasks.length === 0 && prev === null) return
-  await commit($, prev, { ...base, tasks }, now, cost)
+  await commit($, prev, { ...base, tasks, ...(isPlan ? { fromPlan: true } : {}) }, now, cost)
 }
 
 const asInput = (task: MainTask): TaskInput => ({
@@ -413,6 +414,19 @@ export const register: Register = on => {
     if (ran.isError !== true && ran.deny === undefined) {
       const input = e as unknown as PlanInput
       await mirror($, (tasks, now, cost) => mergeTasks(planTasks(input, tasks.map(asInput)), tasks, now, cost), true).catch(
+        () => undefined,
+      )
+    }
+
+    return ran
+  }).catch(($, e, next) => next(e))
+
+  // The app's wrap_up checks off its whole plan without another update_plan call.
+  on('tool.call', { tool: WRAP_TOOL }, async ($, e, next) => {
+    const ran = await next(e)
+    const goal = await read($, goalAtom)
+    if (ran.isError !== true && ran.deny === undefined && goal?.fromPlan === true && goal.doneAt === null) {
+      await mirror($, (tasks, now, cost) => mergeTasks(planTasks({ done: tasks.map((_, i) => i + 1) }, tasks.map(asInput)), tasks, now, cost), true).catch(
         () => undefined,
       )
     }
