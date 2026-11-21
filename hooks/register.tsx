@@ -270,7 +270,7 @@ export const register: Register = on => {
     await $.tool.register({
       name: 'update',
       description:
-        'Update the goal meter the person watches: the big goal, main tasks and subtasks with their status (pending, in_progress, done). Send the full task list every call. Where the app has its own task list (update_plan, TodoWrite), the meter mirrors that one: keep it current instead and call this only to set the goal title.',
+        'Update the goal meter the person watches: the big goal, main tasks and subtasks with their status (pending, in_progress, done). Send the full task list every call. Where the app has its own task list (update_plan, TodoWrite), call that first: the meter mirrors its steps, and this call adds the goal title and the subtasks of those same steps.',
       inputSchema: INPUT_SCHEMA,
       isDeferred: false,
     })

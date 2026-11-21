@@ -345,6 +345,9 @@ describe('built-in task list', () => {
     expect(GUIDE).toContain('mcp__ccd_turn__update_plan')
     expect(GUIDE).toContain('never call mcp__goal-meter__update in its place')
     expect(GUIDE).not.toContain('call mcp__goal-meter__update first')
+    // Subtasks are asked for, after the plan, not left optional.
+    expect(GUIDE).toContain('right after the first plan call')
+    expect(GUIDE).toContain('subtasks')
   })
 
   test('leaves a goal the meter tool writes alone', async ($, on) => {
