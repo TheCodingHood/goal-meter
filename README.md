@@ -4,7 +4,7 @@
 
 **Ein Live-Zielmesser für Claude Code.** Zeigt das große Ziel, jede Hauptaufgabe und Teilaufgabe, was erledigt ist, was gerade läuft, wie lange es gedauert hat und wann es fertig sein wird – in einem Pane neben deiner Session.
 
-[![Version](https://img.shields.io/badge/version-0.7.0--de.12-6366f1.svg)](.claude-plugin/plugin.json)
+[![Version](https://img.shields.io/badge/version-0.7.0--de.13-6366f1.svg)](.claude-plugin/plugin.json)
 [![License: MIT](https://img.shields.io/badge/license-MIT-22c55e.svg)](LICENSE)
 [![Claude Code mod](https://img.shields.io/badge/Claude%20Code-mod-d97757.svg)](https://claude.com/claude-code)
 
@@ -23,7 +23,7 @@
 - **Ziel, Aufgaben und Teilaufgaben.** Oben ein Ziel, darunter die Hauptaufgaben; die Teilaufgaben der laufenden Aufgabe sind als Baum aufgeklappt.
 - **Eine Farbe je Aufgabe**, in ihrer Zeile und in ihrem Abschnitt des gestapelten Fortschrittsbalkens. Erledigtes füllt den Balken, Laufendes blinkt, nicht Begonnenes bleibt grau.
 - **Status auf einen Blick.** `✔` erledigt (grün), `◐` läuft (bernstein, dreht sich), `○` nicht begonnen (grau). Erledigte Teilaufgaben werden durchgestrichen.
-- **Ohne Zutun.** Der Messer folgt der Aufgabenliste, die Claude ohnehin führt: in der Desktop-App dem Plan unter der Nachricht (`update_plan`), sonst `TodoWrite`, `TaskCreate` und `TaskUpdate`. Claude teilt den Plan dafür in feine Schritte (ein Build, eine Messung, ein Fix, ein Gate-Lauf) statt in wenige grobe mit Teilaufgaben, und ruft das Tool `update` nach dem ersten Plan-Aufruf nur einmal mit dem Titel des Ziels auf. Der Plan kommt immer zuerst, damit er im Chat aktuell bleibt. Ohne solche Liste führt `update` den Messer allein, mit Aufgaben und Teilaufgaben.
+- **Ohne Zutun.** Claude hält den Messer über das Tool `update` aktuell: Ziel, Aufgaben und Teilaufgaben, bei jedem Fortschritt mit der vollen Liste. Den Plan der Desktop-App unter der Nachricht (`update_plan`) pflegt Claude daneben weiter. Ohne Meter-Ziel folgt der Messer von selbst dem Plan oder der eingebauten Aufgabenliste (`TodoWrite`, `TaskCreate`, `TaskUpdate`).
 
 **Zeit**
 
@@ -152,7 +152,7 @@ Der Mod registriert ein Tool, `mcp__goal-meter__update`, und ergänzt den System
 }
 ```
 
-Nutzt Claude stattdessen die eingebauten Aufgaben-Tools von Claude Code, liest der Mod die Aufrufe von `TodoWrite`, `TaskCreate` und `TaskUpdate` mit und baut daraus dieselbe Liste (bei `TaskCreate`/`TaskUpdate` über die Task-ID). Ein Ziel aus dem Tool `update` hat Vorrang vor diesen Listen. Der Plan der Desktop-App (`mcp__ccd_turn__update_plan`) dagegen ersetzt die Aufgaben auch dann und behält nur den Titel: Ein voller Plan ersetzt die Liste, `advance` schließt den laufenden Schritt und startet den nächsten, `done` und `start` setzen Schritte nach Position. `wrap_up` hakt einen gespiegelten Plan ganz ab, wie die App es tut.
+Nutzt Claude stattdessen die eingebauten Aufgaben-Tools, liest der Mod die Aufrufe von `TodoWrite`, `TaskCreate` und `TaskUpdate` (über die Task-ID) und den Plan der Desktop-App (`mcp__ccd_turn__update_plan`) mit und baut daraus dieselbe Liste: Ein voller Plan ersetzt sie, `advance` schließt den laufenden Schritt und startet den nächsten, `done` und `start` setzen Schritte nach Position, `wrap_up` hakt den gespiegelten Plan ganz ab. Ein Ziel aus dem Tool `update` hat Vorrang: Keine dieser Listen überschreibt es. Ein Aufruf von `update` nur mit `goal` benennt eine gespiegelte Liste lediglich um.
 
 - **Zeiten** erfasst der Mod, nicht Claude. Die Uhr einer Aufgabe startet, wenn sie zum ersten Mal als laufend gesehen wird, und stoppt, wenn sie zum ersten Mal als erledigt gesehen wird.
 - **Aktive Zeit** läuft von `turn.start` bis `turn.complete` der Hauptunterhaltung, und nicht während einer Pause.

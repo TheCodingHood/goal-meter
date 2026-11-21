@@ -195,14 +195,14 @@ const mirror = async (
   isPlan = false,
 ): Promise<void> => {
   const prev = await read($, goalAtom)
-  // The app's plan wins over the meter tool: it is the list Claude has to keep anyway.
-  if (!isPlan && prev !== null && prev.source === 'meter' && prev.doneAt === null) return
+  // A goal the meter tool keeps wins over every mirrored list, the app's plan too.
+  if (prev !== null && prev.source === 'meter' && prev.doneAt === null) return
   const now = await $.clock.now()
   const cost = costOf(await usageOf($))
   const base =
     prev === null || prev.doneAt !== null
       ? newGoal(MIRRORED_TITLE, 'tasks', now, cost, await read($, isTurnRunningAtom))
-      : { ...prev, source: isPlan && prev.source === 'meter' ? prev.source : ('tasks' as const) }
+      : { ...prev, source: 'tasks' as const }
   const tasks = edit(base.tasks, now, cost)
   if (tasks.length === 0 && prev === null) return
   await commit($, prev, { ...base, tasks, ...(isPlan ? { fromPlan: true } : {}) }, now, cost)
@@ -270,7 +270,7 @@ export const register: Register = on => {
     await $.tool.register({
       name: 'update',
       description:
-        'Update the goal meter the person watches: the big goal, main tasks and subtasks with their status (pending, in_progress, done). Send the full task list every call. Where the app has its own task list (update_plan, TodoWrite), the meter mirrors its steps: call that first, and call this once with just `goal` to name the list.',
+        'Update the goal meter the person watches: the big goal, main tasks and subtasks with their status (pending, in_progress, done). Send the full task list every call.',
       inputSchema: INPUT_SCHEMA,
       isDeferred: false,
     })
@@ -402,7 +402,7 @@ export const register: Register = on => {
       (!isPlanTitle && input.goal !== undefined && input.goal.trim() !== prev.title && prev.source !== 'manual')
     const base: Goal = isNewGoal
       ? newGoal(title, 'meter', now, cost, await read($, isTurnRunningAtom))
-      : { ...prev, title, source: 'meter' }
+      : { ...prev, title, source: isPlanTitle ? prev.source : 'meter' }
     const tasks = input.tasks === undefined ? base.tasks : mergeTasks(input.tasks, base.tasks, now, cost)
     const goal = await commit($, prev, { ...base, tasks }, now, cost)
     const { done, total } = progress(goal)

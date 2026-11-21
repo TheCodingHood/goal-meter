@@ -29,8 +29,7 @@ export const WRAP_TOOL = 'mcp__ccd_turn__wrap_up'
 // The system prompt section: the meter follows the task list Claude keeps anyway.
 export const GUIDE = [
   '# Goal meter',
-  `The person watches a goal meter pane. It mirrors your task list on its own: the app's plan tool (${PLAN_TOOL}), TodoWrite or TaskCreate/TaskUpdate. Keep that list current as the app asks, and always call that tool first; never call ${TOOL} in its place or before it.`,
-  'Make the steps of that list fine enough to show progress: one step per concrete piece of work (a build, a measurement, a fix, a review, a gate run), up to the twelve the plan allows, rather than a few broad steps with parts. Advance it as each one finishes.',
-  `Right after the first plan call of a task with more than one step, call ${TOOL} once with just \`goal\`: one line, e.g. the ticket and its topic. No tasks or subtasks there; the plan is the list.`,
-  `Where no such task list exists, ${TOOL} alone keeps the meter, with tasks and subtasks.`,
+  `The person watches a goal meter. For any multi-step task, call ${TOOL} first with the big goal and the main tasks (each with subtasks where useful), all "pending" or "in_progress".`,
+  'Call it again, with the full list, every time a task or subtask starts or finishes, so the colors, elapsed time and ETA stay true. Mark everything "done" when the goal is reached.',
+  `The meter does not replace the app's own task list (${PLAN_TOOL}): keep that one current as well, as the app asks.`,
 ].join('\n')

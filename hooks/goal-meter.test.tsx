@@ -278,7 +278,7 @@ describe('built-in task list', () => {
     expect(text).toContain('- [~] Check it')
   })
 
-  test('the app plan replaces the tasks of a meter goal but keeps its title', async ($, on) => {
+  test('the app plan leaves a goal the meter tool keeps alone', async ($, on) => {
     setup(on)
     const PLAN = 'mcp__ccd_turn__update_plan'
     on('tool.call', { tool: PLAN }, () => ({ result: 'Plan shown.' }) as never)
@@ -286,35 +286,37 @@ describe('built-in task list', () => {
     await $.tool.call({ tool: PLAN, items: [{ content: 'Only step', status: 'in_progress' }] } as never)
     const text = await reportOf($)
     expect(text).toContain('## Ship login')
-    expect(text).toContain('- [~] Only step')
-    expect(text).not.toContain('Design')
+    expect(text).toContain('Design')
+    expect(text).not.toContain('Only step')
   })
 
-  test('subtasks from the meter tool survive the app plan, and a closed step closes them', async ($, on) => {
+  test('after a plan call the meter tool takes over, subtasks and all, and wrap_up leaves it open', async ($, on) => {
     setup(on)
     const PLAN = 'mcp__ccd_turn__update_plan'
+    const WRAP = 'mcp__ccd_turn__wrap_up'
     on('tool.call', { tool: PLAN }, () => ({ result: 'Plan shown.' }) as never)
-    const items = (first: string) => [
-      { content: 'Review + Gates', status: first },
-      { content: 'Commit', status: 'pending' },
-    ]
-    await $.tool.call({ tool: PLAN, items: items('in_progress') } as never)
-    await $.tool.call({
-      tool: TOOL,
-      tasks: [
-        { title: 'Review + Gates', status: 'in_progress', subtasks: [{ title: '/code-review', status: 'in_progress' }, { title: 'Fixes', status: 'pending' }] },
-        { title: 'Commit', status: 'pending' },
+    on('tool.call', { tool: WRAP }, () => ({ result: 'Shown.' }) as never)
+    await $.tool.call({ tool: PLAN, items: [{ content: 'Review + Gates', status: 'in_progress' }] } as never)
+    const review = (code: string, fixes: string) => ({
+      title: 'Review + Gates',
+      status: 'in_progress',
+      subtasks: [
+        { title: '/code-review', status: code },
+        { title: 'Fixes', status: fixes },
       ],
     })
-    await $.tool.call({ tool: PLAN, items: items('in_progress') } as never)
-    let text = await reportOf($)
-    expect(text).toContain('/code-review')
-    expect(text).toContain('Fixes')
-
+    // A title first, then the full list: the meter keeps the goal from here on.
+    await $.tool.call({ tool: TOOL, goal: 'COD-319' })
+    await $.tool.call({ tool: TOOL, tasks: [review('in_progress', 'pending'), { title: 'Commit', status: 'pending' }] })
+    await $.tool.call({ tool: TOOL, tasks: [review('done', 'in_progress'), { title: 'Commit', status: 'pending' }] })
     await $.tool.call({ tool: PLAN, advance: true } as never)
-    text = await reportOf($)
-    expect(text).toContain('- [x] Review + Gates')
-    expect(text).toContain('- [~] Commit')
+    await $.tool.call({ tool: WRAP, recap: 'Turn over.' } as never)
+    const text = await reportOf($)
+    expect(text).toContain('## COD-319')
+    expect(text).toContain('- [~] Review + Gates')
+    expect(text).toContain('- [ ] Commit')
+    expect(text).toMatch(/\[x\] \/code-review/)
+    expect(text).toMatch(/\[~\] Fixes/)
   })
 
   test('wrap_up checks off a plan the turn never advanced, but not a meter goal', async ($, on) => {
@@ -365,13 +367,11 @@ describe('built-in task list', () => {
     expect(text).toContain('- [~] Trace S3')
   })
 
-  test('the system prompt points to the app plan, not to the meter tool first', () => {
+  test('the system prompt asks for the meter with subtasks and keeps the app plan', () => {
+    expect(GUIDE).toContain('call mcp__goal-meter__update first')
+    expect(GUIDE).toContain('every time a task or subtask starts or finishes')
+    expect(GUIDE).toContain('keep that one current as well')
     expect(GUIDE).toContain('mcp__ccd_turn__update_plan')
-    expect(GUIDE).toContain('never call mcp__goal-meter__update in its place')
-    expect(GUIDE).not.toContain('call mcp__goal-meter__update first')
-    // Detail goes into the plan's own steps; the meter call only names the list.
-    expect(GUIDE).toContain('fine enough to show progress')
-    expect(GUIDE).toContain('No tasks or subtasks there; the plan is the list.')
   })
 
   test('leaves a goal the meter tool writes alone', async ($, on) => {
