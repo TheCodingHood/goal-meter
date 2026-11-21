@@ -278,11 +278,12 @@ const runRow = (v: View, r: TaskRun): Row => {
 const taskRow = (v: View, task: Goal['tasks'][number], i: number): Row => {
   const color = task.status === 'pending' ? GREY : taskColor(i)
   const subsDone = task.subtasks.filter(s => s.status === 'done').length
-  const time = task.startedAt === null ? '' : formatDuration((task.doneAt ?? v.now) - task.startedAt)
+  const ms = task.startedAt === null ? 0 : (task.doneAt ?? v.now) - task.startedAt
+  // "0s" and "$0.00" say nothing: a task ticked off in one go has neither.
   const meta = [
     task.subtasks.length > 0 ? `${subsDone}/${task.subtasks.length} Teilaufgaben` : '',
-    time,
-    task.costUsd !== null ? formatUsd(task.costUsd) : '',
+    ms >= 1000 ? formatDuration(ms) : '',
+    task.costUsd !== null && task.costUsd >= 0.005 ? formatUsd(task.costUsd) : '',
   ]
     .filter(Boolean)
     .join(' · ')
@@ -390,7 +391,7 @@ const PaneDesktop = (v: View, a: Actions, Svg: NonNullable<Els['Svg']>) => {
   const deadline = deadlineText(v, goal)
   const extras = [
     goal.source === 'tasks' ? 'aus Task-Liste' : '',
-    spent !== null ? formatUsd(spent) : '',
+    spent !== null && spent >= 0.005 ? formatUsd(spent) : '',
     deadline?.text.replace(/^ · /, '') ?? '',
     v.factor !== 1 ? `ETA nach Verlauf ×${v.factor.toFixed(2)}` : '',
   ].filter(Boolean)

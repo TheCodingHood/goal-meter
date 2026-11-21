@@ -30,6 +30,7 @@ import {
   costOf,
   hasPanel,
   hasStatus,
+  MAX_SAVED_GOALS,
   PANE,
   PANE_TITLE,
 } from './state'
@@ -106,10 +107,26 @@ const HELP = [
 
 const usageOf = ($: EngineInterface): Promise<SessionUsage | null> => $.session.usage().catch(() => null)
 
-// Writes the goal for this session and keeps a copy for the next one.
+type SavedGoals = Record<string, Goal>
+
+const loadSavedGoals = async ($: EngineInterface): Promise<SavedGoals> => {
+  const raw = await $.store.get(STORE.goals).catch(() => undefined)
+  return raw !== null && typeof raw === 'object' && !Array.isArray(raw) ? (raw as SavedGoals) : {}
+}
+
+// Writes the goal for this session and keeps a copy under the session's id, so
+// a resumed chat finds it again and no other chat picks it up.
 const saveGoal = async ($: EngineInterface, goal: Goal | null): Promise<void> => {
   await update($, goalAtom, () => goal)
-  await (goal === null ? $.store.delete(STORE.goal) : $.store.set(STORE.goal, goal)).catch(() => undefined)
+  const id = await $.session.id().catch(() => null)
+  if (!id) return
+  const saved = { ...(await loadSavedGoals($)) }
+  if (goal === null) delete saved[id]
+  else saved[id] = goal
+  const kept = Object.entries(saved)
+    .sort(([, a], [, b]) => b.startedAt - a.startedAt)
+    .slice(0, MAX_SAVED_GOALS)
+  await $.store.set(STORE.goals, Object.fromEntries(kept)).catch(() => undefined)
 }
 
 const loadHistory = async ($: EngineInterface): Promise<HistoryEntry[]> => {
@@ -267,9 +284,12 @@ export const register: Register = on => {
     const factor = etaFactor(await loadHistory($))
     await update($, etaFactorAtom, () => factor)
 
-    // A goal from an earlier session carries on, its clock stopped until a turn runs.
+    // The old shared key handed one chat's goal to every other chat: gone.
+    await $.store.delete(STORE.goal).catch(() => undefined)
+    // A goal of this same session (resumed) carries on, its clock stopped until a turn runs.
     if ((await read($, goalAtom)) === null) {
-      const saved = (await $.store.get(STORE.goal).catch(() => undefined)) as Goal | undefined
+      const id = await $.session.id().catch(() => null)
+      const saved = id ? (await loadSavedGoals($))[id] : undefined
       if (saved !== undefined && saved !== null && typeof saved === 'object' && saved.doneAt === null) {
         await update($, goalAtom, () => stopActive(saved, now))
       }

@@ -419,16 +419,27 @@ describe('engine events', () => {
     expect((await ui.findAll({ type: 'Box' }))[0]?.props.backgroundColor).toBe(PALETTE.paneBg)
   })
 
-  test('a goal in progress carries over to the next session', async ($, on) => {
-    const saved = { ...newGoal('Long job', 'meter', T0 - 3_600_000, null, true), tasks: mergeTasks([{ title: 'a', status: 'in_progress' }], [], T0) }
-    setup(on, {}, { goal: saved })
+  const LONG_JOB = { ...newGoal('Long job', 'meter', T0 - 3_600_000, null, true), tasks: mergeTasks([{ title: 'a', status: 'in_progress' }], [], T0) }
+  const startAs = async ($: { session: { start: (e: never) => Promise<unknown> } }, on: On, id: string) => {
+    on('session.id', () => ({ value: id }) as never)
     on('session.start', () => ({ cwd: '/tmp' }) as never)
     on('command.register', () => ({ value: { command: 'goal-meter' } }) as never)
     on('tool.register', () => ({ value: { tool: TOOL } }) as never)
-    await $.session.start({ source: 'startup', cwd: '/tmp' } as never)
+    await $.session.start({ source: 'resume', cwd: '/tmp' } as never)
+  }
+
+  test('a goal in progress carries over when the same session resumes', async ($, on) => {
+    setup(on, {}, { goals: { s1: LONG_JOB } })
+    await startAs($, on, 's1')
     const text = await reportOf($)
     expect(text).toContain('## Long job')
     expect(text).toContain('- [~] a')
+  })
+
+  test('another session does not pick up the goal, nor the old shared key', async ($, on) => {
+    setup(on, {}, { goals: { s1: LONG_JOB }, goal: LONG_JOB })
+    await startAs($, on, 's2')
+    expect(await reportOf($)).not.toContain('Long job')
   })
 })
 
