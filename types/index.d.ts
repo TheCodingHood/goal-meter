@@ -109,6 +109,8 @@ declare module 'claude-code' {
       model: ModelInfo | null
       runs: Shaped<TaskRun[]>
       runsAutoOpened: boolean
+      isDoneTasksCollapsed: boolean
+      isDoneRunsCollapsed: boolean
     }
   }
 }

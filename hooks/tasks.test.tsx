@@ -70,17 +70,46 @@ describe('tasks: in the pane', () => {
     await $.tool.call({ tool: 'Bash', command: 'sleep 5', description: 'Long wait' })
     await $.tool.call({ tool: 'Bash', command: 'ls' })
 
-    for (const surface of ['terminal', 'desktop'] as const) {
-      const ui = await $.ui.mount({ ...PANE, surface } as never)
-      const all = await texts(ui)
-      expect(all).toContain(' TASKS ')
-      expect(all).toContain('✔ ')
-      expect(all).toContain('Long wait')
-      expect(all).toContain(' · 5s')
-      expect(all.some(t => t === 'ls' || t.includes('$ ls'))).toBe(false)
-      await ui.unmount()
-    }
+    const ui = await $.ui.mount({ ...PANE, surface: 'terminal' } as never)
+    const all = await texts(ui)
+    expect(all).toContain(' TASKS ')
+    expect(all).toContain('✔ ')
+    expect(all).toContain('Long wait')
+    expect(all).toContain(' · 5s')
+    expect(all.some(t => t === 'ls' || t.includes('$ ls'))).toBe(false)
+    await ui.unmount()
+
+    // The desktop: a tiles header and one SVG row for the finished call.
+    const desk = await $.ui.mount({ ...PANE, surface: 'desktop' } as never)
+    const svgs = await desk.findAll({ type: 'Svg' })
+    expect(svgs.map(s => String(s.props.alt))).toEqual(['0 laufend, 1 fertig', 'Long wait: Bash, 5s'])
+    await desk.unmount()
   })
+
+  for (const surface of ['terminal', 'desktop'] as const) {
+    test(`finished tasks fold away and back on ${surface}`, async ($, on) => {
+      const { clock } = engine(on, 1_500_000)
+      on('tool.call', async () => {
+        await clock.advance(5_000)
+        return { result: { stdout: '', stderr: '', interrupted: false } }
+      })
+      await start($)
+      await $.tool.call({ tool: 'Bash', command: 'sleep 5', description: 'Long wait' })
+
+      const ui = await $.ui.mount({ ...PANE, surface } as never)
+      const shows = async () =>
+        surface === 'desktop'
+          ? (await ui.findAll({ type: 'Svg' })).some(s => String(s.props.alt).startsWith('Long wait'))
+          : (await texts(ui)).includes('Long wait')
+      expect((await ui.find({ key: 'done-runs' }))?.props.label).toBe('▾ Fertig · 1')
+      expect(await shows()).toBe(true)
+      await ui.press({ key: 'done-runs' })
+      expect((await ui.find({ key: 'done-runs' }))?.props.label).toBe('▸ Fertig · 1')
+      expect(await shows()).toBe(false)
+      await ui.press({ key: 'done-runs' })
+      expect(await shows()).toBe(true)
+    })
+  }
 
   test('the gate runs its steps, counts tests, reports and shows ✗ for a failed step', async ($, on) => {
     const { clock } = engine(on, 2_000_000)

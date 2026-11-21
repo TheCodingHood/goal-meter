@@ -49,6 +49,8 @@ const quotaSamplesAtom = atom({ plugin: 'goal-meter', key: 'quotaSamples' } as c
 const alertedAtom = atom({ plugin: 'goal-meter', key: 'alerted' } as const, [])
 const etaFactorAtom = atom({ plugin: 'goal-meter', key: 'etaFactor' } as const, 1)
 const modelAtom = atom({ plugin: 'goal-meter', key: 'model' } as const, null)
+const isDoneTasksCollapsedAtom = atom({ plugin: 'goal-meter', key: 'isDoneTasksCollapsed' } as const, false)
+const isDoneRunsCollapsedAtom = atom({ plugin: 'goal-meter', key: 'isDoneRunsCollapsed' } as const, false)
 
 const TOOL = 'mcp__goal-meter__update'
 
@@ -204,6 +206,8 @@ const view = async ($: EngineInterface, els: Els, cols: number): Promise<View> =
   factor: await read($, etaFactorAtom),
   model: await read($, modelAtom),
   runs: await read($, runsAtom),
+  isDoneTasksCollapsed: await read($, isDoneTasksCollapsedAtom),
+  isDoneRunsCollapsed: await read($, isDoneRunsCollapsedAtom),
 })
 
 const actions = ($: EngineInterface): Actions => ({
@@ -228,6 +232,8 @@ const actions = ($: EngineInterface): Actions => ({
       await update($, isMutedAtom, () => isMuted)
       await $.store.set(STORE.muted, isMuted).catch(() => undefined)
     })(),
+  toggleDoneTasks: () => void update($, isDoneTasksCollapsedAtom, prev => !prev),
+  toggleDoneRuns: () => void update($, isDoneRunsCollapsedAtom, prev => !prev),
 })
 
 // --- register ------------------------------------------------------------------
@@ -494,7 +500,9 @@ export const register: Register = on => {
   })
 
   on('ui.render', { component: 'Pane', requestId: 'goal-meter' }, async ($, e) => {
-    const v = await view($, $.ui.resolve(e) as unknown as Els, e.props.bodyColumns || e.viewport?.columns || 50)
+    const els = $.ui.resolve(e)
+    // Only the desktop draws Svg; other surfaces get the text rows.
+    const v = await view($, (e.surface === 'desktop' && 'Svg' in els ? els : { Box: els.Box, Text: els.Text, Button: els.Button }) as unknown as Els, e.props.bodyColumns || e.viewport?.columns || 50)
 
     return Pane(v, actions($))
   })

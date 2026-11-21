@@ -4,7 +4,7 @@
 
 **Ein Live-Zielmesser für Claude Code.** Zeigt das große Ziel, jede Hauptaufgabe und Teilaufgabe, was erledigt ist, was gerade läuft, wie lange es gedauert hat und wann es fertig sein wird – in einem Pane neben deiner Session.
 
-[![Version](https://img.shields.io/badge/version-0.7.0--de.5-6366f1.svg)](.claude-plugin/plugin.json)
+[![Version](https://img.shields.io/badge/version-0.7.0--de.6-6366f1.svg)](.claude-plugin/plugin.json)
 [![License: MIT](https://img.shields.io/badge/license-MIT-22c55e.svg)](LICENSE)
 [![Claude Code mod](https://img.shields.io/badge/Claude%20Code-mod-d97757.svg)](https://claude.com/claude-code)
 
@@ -43,13 +43,20 @@
 - **Gate-Tool.** `mcp__goal-meter__gate` führt Prüfungen (Tests, Builds, Lint) als benannte Schritte aus, zählt Tests live mit und liefert Claude je Schritt Exit-Code, Dauer, Testzahlen und die letzten Ausgabezeilen. Befehle laufen vorher durch die Bash-Erlaubnisregeln.
 - **Öffnet von selbst.** Das Pane öffnet sich mit jeder Session, auch ohne Ziel. Ein sichtbarer Task öffnet es einmal erneut, jedes Gate jedes Mal (nicht im Modus `status`). Kann die Oberfläche es nicht platzieren, steht der Grund als graue Zeile im Verlauf.
 - Es bleiben die letzten 12 fertigen Läufe; ✔ erledigt, ✗ fehlgeschlagen, ■ abgebrochen, – übersprungen.
+- **Zuklappen.** „▾ Fertig · n“ klappt fertige Tasks zu, „▾ Erledigt · n“ erledigte Aufgaben des Ziels; ein zweiter Klick klappt sie wieder auf.
+
+**Desktop-Look** (angelehnt an das Agents-Panel von savvy-progress)
+
+- In der Desktop-App zeichnet das Pane jede Zeile als SVG: Kopf mit gepunktetem Fortschrittsbalken und Kacheln (Aufgaben, Aktiv, Rest, Fertig um), Aufgaben mit Pixel-Krabbe in der Aufgabenfarbe, Tasks mit Terminal-Symbol, dünne Balken und Statusmarken rechts. Ohne Ziel zeigt der Kopf Laufend, Fertig und Zeit.
+- Hell und dunkel folgen dem System; `prefers-reduced-motion` hält Krabben und Pixel an.
+- Im Terminal bleibt die Textansicht. Nur dort startet ein Klick auf eine Aufgabe „weitermachen“: Auf dem Desktop kann ein SVG nicht in einem Knopf stecken.
 
 **Alles andere**
 
 - **Subagents.** Agents, die Claude startet, erscheinen im Pane, solange sie laufen.
 - **Bericht und Verlauf.** `/goal-meter report` liefert eine Markdown-Zusammenfassung fürs Standup; `/goal-meter history` listet erreichte Ziele mit Zeit und Kosten.
 - **Bleibt erhalten.** Ein laufendes Ziel wird in eine neue Session übernommen.
-- **Knöpfe.** Im Pane bittet ein Klick auf eine Aufgabe Claude, damit weiterzumachen; Pause, Modus und Ton stellst du per Befehl ein.
+- **Knöpfe.** Im Terminal-Pane bittet ein Klick auf eine Aufgabe Claude, damit weiterzumachen; Pause, Modus und Ton stellst du per Befehl ein.
 - **Töne**, wenn ein Ziel erreicht ist und wenn ein Kontingent-Hinweis kommt (`/goal-meter sound off` schaltet sie stumm).
 
 ## Installation
@@ -175,6 +182,7 @@ hooks/
   register.tsx       Events, Tools, der Befehl, Zustand und die Hooks der beiden Ansichten
   views.tsx          das Pane
   tasks.ts           Tasks: Bash-Zeilen, Gate-Tool, ETA-Verlauf (Store-Key runHistory)
+  svg.ts             Desktop-Zeichnungen: Kopf, Zeilen, Krabbe, gepunkteter Balken
   meter.ts           reine Logik: Zusammenführen, Fortschritt, aktive Zeit, ETA, Frist, Balkenabschnitte
   quota.ts           Kontingent-Messungen, Prognose und Hinweise
   report.ts          /goal-meter report und history als Markdown

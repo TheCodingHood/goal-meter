@@ -74,7 +74,8 @@ const LOGIN = [
 ]
 
 describe('pane', () => {
-  for (const surface of SURFACES) {
+  // The desktop draws SVG rows; its own tests are below.
+  for (const surface of ['terminal'] as const) {
     test(`colors done, running and pending items on ${surface}`, async ($, on) => {
       const { clock } = setup(on)
       await $.tool.call({ tool: TOOL, goal: 'Ship login', tasks: LOGIN })
@@ -115,6 +116,9 @@ describe('pane', () => {
       expect(texts).not.toContain('5 Std. ')
       expect(texts).not.toContain('  Woche ')
     })
+  }
+
+  for (const surface of ['terminal'] as const) {
 
     test(`only task buttons, no control buttons, on ${surface}`, async ($, on) => {
       const { seen } = setup(on)
@@ -131,6 +135,49 @@ describe('pane', () => {
 
       await ui.press({ key: 'task-2' })
       expect(seen.prompts).toEqual(['Mach mit "Test" weiter'])
+    })
+  }
+
+  test('the desktop draws the header and one SVG row per task', async ($, on) => {
+    const { clock } = setup(on)
+    await $.tool.call({ tool: TOOL, goal: 'Ship login', tasks: LOGIN })
+    await clock.advance(10 * 60_000)
+    await $.tool.call({ tool: TOOL, tasks: LOGIN })
+
+    const ui = await $.ui.mount({ plugin: 'goal-meter', surface: 'desktop', component: 'Pane', requestId: 'goal-meter', props: PANE_PROPS })
+    const svgs = await ui.findAll({ type: 'Svg' })
+    // Svg carries no key here: the header comes first, then one row per task.
+    const [header, ...rows] = svgs
+    expect(String(header?.props.alt)).toContain('Ship login: 50%')
+    expect(String(header?.props.alt)).toContain('Aufgaben 2/4')
+    expect(String(header?.props.source)).toContain('<svg')
+    expect(rows.map(s => String(s.props.alt).split(':')[0])).toEqual(['1. Design', '2. Build', '3. Test'])
+    expect(String(rows[1]?.props.source)).toContain(taskColor(1))
+    expect(String(rows[1]?.props.alt)).toContain('läuft')
+    // The running task lists its subtasks inside its row.
+    expect(String(rows[1]?.props.source)).toContain('>API<')
+    expect(String(rows[2]?.props.alt)).toContain('offen')
+    expect((await ui.findAll({ type: 'Text' })).some(t => /[█░▓]{2,}/.test(t.text))).toBe(false)
+  })
+
+  for (const surface of SURFACES) {
+    test(`done tasks fold away and back on ${surface}`, async ($, on) => {
+      setup(on)
+      await $.tool.call({ tool: TOOL, goal: 'Ship login', tasks: LOGIN })
+      const ui = await $.ui.mount({ plugin: 'goal-meter', surface, component: 'Pane', requestId: 'goal-meter', props: PANE_PROPS })
+      const shows = async (part: string) =>
+        surface === 'desktop'
+          ? (await ui.findAll({ type: 'Svg' })).some(s => String(s.props.alt).includes(part))
+          : (await ui.findAll({ type: 'Text' })).some(t => t.text.includes(part))
+
+      expect((await ui.find({ key: 'done-tasks' }))?.props.label).toBe('▾ Erledigt · 1')
+      expect(await shows('Design')).toBe(true)
+      await ui.press({ key: 'done-tasks' })
+      expect((await ui.find({ key: 'done-tasks' }))?.props.label).toBe('▸ Erledigt · 1')
+      expect(await shows('Design')).toBe(false)
+      expect(await shows('Build')).toBe(true)
+      await ui.press({ key: 'done-tasks' })
+      expect(await shows('Design')).toBe(true)
     })
   }
 })
