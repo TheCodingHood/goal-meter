@@ -385,6 +385,69 @@ describe('built-in task list', () => {
   })
 })
 
+describe('subtask reminder', () => {
+  const REVIEW = (first: string) => [
+    {
+      title: 'Reviews and gates',
+      status: 'in_progress',
+      subtasks: [
+        { title: 'SwiftUI review', status: first },
+        { title: 'Code review', status: 'pending' },
+      ],
+    },
+    { title: 'Commit', status: 'pending' },
+  ]
+  const bash = ($: { tool: { call: (e: never) => Promise<{ context?: readonly string[] }> } }) =>
+    $.tool.call({ tool: 'Bash', command: 'ls' } as never)
+  const stub = (on: On) => on('tool.call', { tool: 'Bash' }, () => ({ result: { stdout: '', stderr: '', interrupted: false } }) as never)
+
+  test('after eight tool calls without a meter call, one reminder rides on the result', async ($, on) => {
+    setup(on)
+    stub(on)
+    await $.tool.call({ tool: TOOL, goal: 'COD-278', tasks: REVIEW('in_progress') })
+    for (let i = 0; i < 7; i++) expect((await bash($)).context).toBeUndefined()
+    const eighth = await bash($)
+    expect(eighth.context?.[0]).toContain('"Reviews and gates" → "SwiftUI review" as running')
+    expect(eighth.context?.[0]).toContain('mcp__goal-meter__update')
+    // Once, then the count starts over.
+    expect((await bash($)).context).toBeUndefined()
+  })
+
+  test('after three minutes one call is enough, and a meter call resets the clock', async ($, on) => {
+    const { clock } = setup(on)
+    stub(on)
+    await $.tool.call({ tool: TOOL, goal: 'COD-278', tasks: REVIEW('in_progress') })
+    await clock.advance(2 * 60_000)
+    await $.tool.call({ tool: TOOL, tasks: REVIEW('done') })
+    await clock.advance(2 * 60_000)
+    expect((await bash($)).context).toBeUndefined()
+    await clock.advance(60_000)
+    const late = await bash($)
+    expect(late.context?.[0]).toContain('"Code review" as next for 3m00s')
+  })
+
+  test('no reminder without open subtasks, for a mirrored plan, or for a subagent', async ($, on) => {
+    const { clock } = setup(on)
+    stub(on)
+    const PLAN = 'mcp__ccd_turn__update_plan'
+    on('tool.call', { tool: PLAN }, () => ({ result: 'Plan shown.' }) as never)
+    await $.tool.call({ tool: PLAN, items: [{ content: 'Only step', status: 'in_progress' }] } as never)
+    await clock.advance(10 * 60_000)
+    expect((await bash($)).context).toBeUndefined()
+
+    await $.tool.call({ tool: TOOL, goal: 'Flat', tasks: [{ title: 'One', status: 'in_progress' }] })
+    await clock.advance(10 * 60_000)
+    expect((await bash($)).context).toBeUndefined()
+
+    await $.tool.call({ tool: TOOL, goal: 'Deep', tasks: REVIEW('in_progress') })
+    await clock.advance(10 * 60_000)
+    const fromAgent = await $.tool.call({ tool: 'Bash', command: 'ls', agentId: 'a1' } as never)
+    expect(fromAgent.context).toBeUndefined()
+    // The same moment in the main session does get it.
+    expect((await bash($)).context?.[0]).toContain('"SwiftUI review"')
+  })
+})
+
 describe('goal lifecycle', () => {
   test('a finished goal toasts, plays a sound and lands in the history', async ($, on) => {
     const { seen } = setup(on, { cost: 2 })

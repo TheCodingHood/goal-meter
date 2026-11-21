@@ -57,11 +57,16 @@ const etaFactorAtom = atom({ plugin: 'goal-meter', key: 'etaFactor' } as const, 
 const modelAtom = atom({ plugin: 'goal-meter', key: 'model' } as const, null)
 const isDoneTasksCollapsedAtom = atom({ plugin: 'goal-meter', key: 'isDoneTasksCollapsed' } as const, false)
 const isDoneRunsCollapsedAtom = atom({ plugin: 'goal-meter', key: 'isDoneRunsCollapsed' } as const, false)
+// When the meter tool last ran (or the last reminder went out), and the tool calls since.
+const nudgeAtom = atom({ plugin: 'goal-meter', key: 'nudge' } as const, { at: 0, calls: 0 })
 
 
 const SOUND_DONE = 'sounds/done.wav'
 const SOUND_ALERT = 'sounds/alert.wav'
 const MAX_AGENTS = 8
+// A subtask reminder after this long, or this many tool calls, without a meter call.
+const NUDGE_MS = 3 * 60_000
+const NUDGE_CALLS = 8
 const MIRRORED_TITLE = 'Aufgaben dieser Session'
 
 const STEP_SCHEMA = {
@@ -405,6 +410,7 @@ export const register: Register = on => {
       : { ...prev, title, source: isPlanTitle ? prev.source : 'meter' }
     const tasks = input.tasks === undefined ? base.tasks : mergeTasks(input.tasks, base.tasks, now, cost)
     const goal = await commit($, prev, { ...base, tasks }, now, cost)
+    await update($, nudgeAtom, () => ({ at: now, calls: 0 }))
     const { done, total } = progress(goal)
 
     return { result: `Goal meter updated: ${done}/${total} done.` }
@@ -421,6 +427,26 @@ export const register: Register = on => {
     }
 
     return ran
+  }).catch(($, e, next) => next(e))
+
+  // Claude keeps main tasks current but forgets subtasks: after a while without a meter
+  // call, one reminder rides on the next tool result (`context`: the model reads it,
+  // the person does not, the output stays as it was).
+  on('tool.call', async ($, e, next) => {
+    const ran = await next(e)
+    if (ran.deny !== undefined || e.agentId !== undefined || e.tool === TOOL) return ran
+    const goal = await read($, goalAtom)
+    const task = goal?.tasks.find(t => t.status === 'in_progress')
+    const sub = task?.subtasks.find(s => s.status === 'in_progress') ?? task?.subtasks.find(s => s.status === 'pending')
+    if (goal === null || goal.doneAt !== null || goal.isPaused || !task || !sub) return ran
+    const now = await $.clock.now()
+    const n = await update($, nudgeAtom, prev => ({ ...prev, calls: prev.calls + 1 }))
+    if (now - n.at < NUDGE_MS && n.calls < NUDGE_CALLS) return ran
+    await update($, nudgeAtom, () => ({ at: now, calls: 0 }))
+    const since = n.at > 0 ? ` for ${formatDuration(now - n.at)}` : ''
+    const reminder = `goal-meter: the pane still shows "${task.title}" → "${sub.title}" as ${sub.status === 'in_progress' ? 'running' : 'next'}${since}. If a subtask started or finished since, call ${TOOL} with the full list now; otherwise carry on.`
+
+    return { ...ran, context: [...(ran.context ?? []), reminder] }
   }).catch(($, e, next) => next(e))
 
   // The app's wrap_up checks off its whole plan without another update_plan call.

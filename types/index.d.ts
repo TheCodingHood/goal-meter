@@ -113,6 +113,7 @@ declare module 'claude-code' {
       runsAutoOpened: boolean
       isDoneTasksCollapsed: boolean
       isDoneRunsCollapsed: boolean
+      nudge: { at: number; calls: number }
     }
   }
 }
