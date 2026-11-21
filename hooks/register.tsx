@@ -270,7 +270,7 @@ export const register: Register = on => {
     await $.tool.register({
       name: 'update',
       description:
-        'Update the goal meter the person watches: the big goal, main tasks and subtasks with their status (pending, in_progress, done). Send the full task list every call. Where the app has its own task list (update_plan, TodoWrite), call that first: the meter mirrors its steps, and this call adds the goal title and the subtasks of those same steps.',
+        'Update the goal meter the person watches: the big goal, main tasks and subtasks with their status (pending, in_progress, done). Send the full task list every call. Where the app has its own task list (update_plan, TodoWrite), the meter mirrors its steps: call that first, and call this once with just `goal` to name the list.',
       inputSchema: INPUT_SCHEMA,
       isDeferred: false,
     })
@@ -394,10 +394,12 @@ export const register: Register = on => {
     const cost = costOf(await usageOf($))
     const prev = await read($, goalAtom)
     const title = input.goal?.trim() || prev?.title || 'Ziel'
+    // A title alone on a list mirrored from the app's plan names that list; it starts nothing new.
+    const isPlanTitle = prev?.fromPlan === true && input.tasks === undefined
     const isNewGoal =
       prev === null ||
       prev.doneAt !== null ||
-      (input.goal !== undefined && input.goal.trim() !== prev.title && prev.source !== 'manual')
+      (!isPlanTitle && input.goal !== undefined && input.goal.trim() !== prev.title && prev.source !== 'manual')
     const base: Goal = isNewGoal
       ? newGoal(title, 'meter', now, cost, await read($, isTurnRunningAtom))
       : { ...prev, title, source: 'meter' }

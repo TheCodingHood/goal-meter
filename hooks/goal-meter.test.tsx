@@ -341,13 +341,37 @@ describe('built-in task list', () => {
     expect(text).toContain('- [ ] Test')
   })
 
+  test('a title alone names a list mirrored from the plan and keeps its steps', async ($, on) => {
+    setup(on)
+    const PLAN = 'mcp__ccd_turn__update_plan'
+    on('tool.call', { tool: PLAN }, () => ({ result: 'Plan shown.' }) as never)
+    await $.tool.call({
+      tool: PLAN,
+      items: [
+        { content: 'Build with -O', status: 'done' },
+        { content: 'Trace S2', status: 'in_progress' },
+        { content: 'Trace S3', status: 'pending' },
+      ],
+    } as never)
+    await $.tool.call({ tool: TOOL, goal: 'COD-319: measure the fade' })
+    let text = await reportOf($)
+    expect(text).toContain('## COD-319: measure the fade')
+    expect(text).toContain('- [~] Trace S2')
+
+    await $.tool.call({ tool: PLAN, advance: true } as never)
+    text = await reportOf($)
+    expect(text).toContain('## COD-319: measure the fade')
+    expect(text).toContain('- [x] Trace S2')
+    expect(text).toContain('- [~] Trace S3')
+  })
+
   test('the system prompt points to the app plan, not to the meter tool first', () => {
     expect(GUIDE).toContain('mcp__ccd_turn__update_plan')
     expect(GUIDE).toContain('never call mcp__goal-meter__update in its place')
     expect(GUIDE).not.toContain('call mcp__goal-meter__update first')
-    // Subtasks are asked for, after the plan, not left optional.
-    expect(GUIDE).toContain('right after the first plan call')
-    expect(GUIDE).toContain('subtasks')
+    // Detail goes into the plan's own steps; the meter call only names the list.
+    expect(GUIDE).toContain('fine enough to show progress')
+    expect(GUIDE).toContain('No tasks or subtasks there; the plan is the list.')
   })
 
   test('leaves a goal the meter tool writes alone', async ($, on) => {

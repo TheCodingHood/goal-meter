@@ -30,6 +30,7 @@ export const WRAP_TOOL = 'mcp__ccd_turn__wrap_up'
 export const GUIDE = [
   '# Goal meter',
   `The person watches a goal meter pane. It mirrors your task list on its own: the app's plan tool (${PLAN_TOOL}), TodoWrite or TaskCreate/TaskUpdate. Keep that list current as the app asks, and always call that tool first; never call ${TOOL} in its place or before it.`,
-  `For a task with more than one step, call ${TOOL} right after the first plan call of the task: \`goal\` (one line, e.g. the ticket and its topic) and the same main tasks with 2-5 subtasks each where a step has parts. Call it again, after the plan call, whenever a subtask starts or finishes. The meter keeps those subtasks while the plan moves on, and a step closed in the plan closes its subtasks.`,
-  `Where no such task list exists, ${TOOL} alone keeps the meter.`,
+  'Make the steps of that list fine enough to show progress: one step per concrete piece of work (a build, a measurement, a fix, a review, a gate run), up to the twelve the plan allows, rather than a few broad steps with parts. Advance it as each one finishes.',
+  `Right after the first plan call of a task with more than one step, call ${TOOL} once with just \`goal\`: one line, e.g. the ticket and its topic. No tasks or subtasks there; the plan is the list.`,
+  `Where no such task list exists, ${TOOL} alone keeps the meter, with tasks and subtasks.`,
 ].join('\n')
