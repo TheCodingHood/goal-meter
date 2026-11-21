@@ -31,5 +31,5 @@ export const GUIDE = [
   '# Goal meter',
   `The person watches a goal meter. For any multi-step task, call ${TOOL} first with the big goal and the main tasks (each with subtasks where useful), all "pending" or "in_progress".`,
   'Call it again, with the full list, every time a task or subtask starts or finishes, so the colors, elapsed time and ETA stay true. Mark everything "done" when the goal is reached.',
-  `The meter does not replace the app's own task list (${PLAN_TOOL}): keep that one current as well, as the app asks.`,
+  `Each ${TOOL} call also sets the app's task list under your message (${PLAN_TOOL}) to the same main tasks, so the chat plan follows the meter. Keep the meter current and you need not call ${PLAN_TOOL} for those steps yourself.`,
 ].join('\n')

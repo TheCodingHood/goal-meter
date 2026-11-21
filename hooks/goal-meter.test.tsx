@@ -367,10 +367,45 @@ describe('built-in task list', () => {
     expect(text).toContain('- [~] Trace S3')
   })
 
+  test('a meter call hands its main tasks to the app plan, once per change', async ($, on) => {
+    setup(on)
+    const PLAN = 'mcp__ccd_turn__update_plan'
+    const sent: unknown[] = []
+    on('tool.call', { tool: PLAN }, (_$, e) => (sent.push(e), { result: 'Plan shown.' }) as never)
+    const tasks = (sub: string, second: string) => [
+      { title: 'Review', status: 'in_progress', subtasks: [{ title: 'SwiftUI', status: sub }, { title: 'Code', status: 'pending' }] },
+      { title: 'Commit', status: second },
+    ]
+    await $.tool.call({ tool: TOOL, goal: 'COD-305', tasks: tasks('in_progress', 'pending') })
+    expect(sent).toHaveLength(1)
+    expect(sent[0]).toMatchObject({
+      scope: 'continuation',
+      items: [
+        { content: 'Review', status: 'in_progress' },
+        { content: 'Commit', status: 'pending' },
+      ],
+    })
+    // A subtask alone leaves the plan as it is.
+    await $.tool.call({ tool: TOOL, tasks: tasks('done', 'pending') })
+    expect(sent).toHaveLength(1)
+    // A main task that moves sends the new list.
+    await $.tool.call({
+      tool: TOOL,
+      tasks: [
+        { title: 'Review', status: 'done', subtasks: [{ title: 'SwiftUI', status: 'done' }, { title: 'Code', status: 'done' }] },
+        { title: 'Commit', status: 'in_progress' },
+      ],
+    })
+    expect(sent).toHaveLength(2)
+    expect(sent[1]).toMatchObject({ items: [{ content: 'Review', status: 'completed' }, { content: 'Commit', status: 'in_progress' }] })
+    // The plan call the mod made does not touch the meter's goal.
+    expect(await reportOf($)).toContain('## COD-305')
+  })
+
   test('the system prompt asks for the meter with subtasks and keeps the app plan', () => {
     expect(GUIDE).toContain('call mcp__goal-meter__update first')
     expect(GUIDE).toContain('every time a task or subtask starts or finishes')
-    expect(GUIDE).toContain('keep that one current as well')
+    expect(GUIDE).toContain('so the chat plan follows the meter')
     expect(GUIDE).toContain('mcp__ccd_turn__update_plan')
   })
 

@@ -4,7 +4,7 @@
 
 **Ein Live-Zielmesser für Claude Code.** Zeigt das große Ziel, jede Hauptaufgabe und Teilaufgabe, was erledigt ist, was gerade läuft, wie lange es gedauert hat und wann es fertig sein wird – in einem Pane neben deiner Session.
 
-[![Version](https://img.shields.io/badge/version-0.7.0--de.14-6366f1.svg)](.claude-plugin/plugin.json)
+[![Version](https://img.shields.io/badge/version-0.7.0--de.15-6366f1.svg)](.claude-plugin/plugin.json)
 [![License: MIT](https://img.shields.io/badge/license-MIT-22c55e.svg)](LICENSE)
 [![Claude Code mod](https://img.shields.io/badge/Claude%20Code-mod-d97757.svg)](https://claude.com/claude-code)
 
@@ -23,7 +23,7 @@
 - **Ziel, Aufgaben und Teilaufgaben.** Oben ein Ziel, darunter die Hauptaufgaben; die Teilaufgaben der laufenden Aufgabe sind als Baum aufgeklappt.
 - **Eine Farbe je Aufgabe**, in ihrer Zeile und in ihrem Abschnitt des gestapelten Fortschrittsbalkens. Erledigtes füllt den Balken, Laufendes blinkt, nicht Begonnenes bleibt grau.
 - **Status auf einen Blick.** `✔` erledigt (grün), `◐` läuft (bernstein, dreht sich), `○` nicht begonnen (grau). Erledigte Teilaufgaben werden durchgestrichen.
-- **Ohne Zutun.** Claude hält den Messer über das Tool `update` aktuell: Ziel, Aufgaben und Teilaufgaben, bei jedem Fortschritt mit der vollen Liste. Den Plan der Desktop-App unter der Nachricht (`update_plan`) pflegt Claude daneben weiter. Ohne Meter-Ziel folgt der Messer von selbst dem Plan oder der eingebauten Aufgabenliste (`TodoWrite`, `TaskCreate`, `TaskUpdate`).
+- **Ohne Zutun.** Claude hält den Messer über das Tool `update` aktuell: Ziel, Aufgaben und Teilaufgaben, bei jedem Fortschritt mit der vollen Liste. Ändern sich dabei Hauptaufgaben, setzt goal-meter den Plan der Desktop-App unter der Nachricht (`update_plan`) selbst auf dieselben Schritte (höchstens 12); Claude pflegt also nur eine Liste. Ohne Meter-Ziel folgt der Messer umgekehrt dem Plan oder der eingebauten Aufgabenliste (`TodoWrite`, `TaskCreate`, `TaskUpdate`).
 - **Erinnerung an Teilaufgaben.** Steht eine Teilaufgabe 3 Minuten oder 8 Tool-Aufrufe lang ohne Meter-Aufruf, hängt goal-meter einmal eine Erinnerung an das nächste Tool-Ergebnis (`context`: Claude liest sie, du siehst sie nicht, die Ausgabe bleibt unverändert). Nicht bei Subagents, nicht ohne offene Teilaufgaben.
 
 **Zeit**

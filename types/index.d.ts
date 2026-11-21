@@ -114,6 +114,7 @@ declare module 'claude-code' {
       isDoneTasksCollapsed: boolean
       isDoneRunsCollapsed: boolean
       nudge: { at: number; calls: number }
+      planSynced: string
     }
   }
 }

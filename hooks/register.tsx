@@ -59,6 +59,8 @@ const isDoneTasksCollapsedAtom = atom({ plugin: 'goal-meter', key: 'isDoneTasksC
 const isDoneRunsCollapsedAtom = atom({ plugin: 'goal-meter', key: 'isDoneRunsCollapsed' } as const, false)
 // When the meter tool last ran (or the last reminder went out), and the tool calls since.
 const nudgeAtom = atom({ plugin: 'goal-meter', key: 'nudge' } as const, { at: 0, calls: 0 })
+// The main tasks last handed to the app's plan, so subtask-only changes send nothing.
+const planSyncedAtom = atom({ plugin: 'goal-meter', key: 'planSynced' } as const, '')
 
 
 const SOUND_DONE = 'sounds/done.wav'
@@ -67,6 +69,8 @@ const MAX_AGENTS = 8
 // A subtask reminder after this long, or this many tool calls, without a meter call.
 const NUDGE_MS = 3 * 60_000
 const NUDGE_CALLS = 8
+// The app's plan takes 1 to 12 steps.
+const PLAN_MAX = 12
 const MIRRORED_TITLE = 'Aufgaben dieser Session'
 
 const STEP_SCHEMA = {
@@ -211,6 +215,16 @@ const mirror = async (
   const tasks = edit(base.tasks, now, cost)
   if (tasks.length === 0 && prev === null) return
   await commit($, prev, { ...base, tasks, ...(isPlan ? { fromPlan: true } : {}) }, now, cost)
+}
+
+// Claude keeps one list current, not two: the meter's main tasks become the app's
+// plan under the message. Only a change of titles or statuses sends a call.
+async function syncPlan($: EngineInterface, goal: Goal): Promise<void> {
+  const items = goal.tasks.slice(0, PLAN_MAX).map(t => ({ content: t.title, status: t.status === 'done' ? 'completed' : t.status }))
+  const key = JSON.stringify(items)
+  if (items.length === 0 || key === (await read($, planSyncedAtom))) return
+  await update($, planSyncedAtom, () => key)
+  await $.tool.call({ tool: PLAN_TOOL, items, scope: 'continuation' } as never).catch(() => undefined)
 }
 
 const asInput = (task: MainTask): TaskInput => ({
@@ -411,6 +425,7 @@ export const register: Register = on => {
     const tasks = input.tasks === undefined ? base.tasks : mergeTasks(input.tasks, base.tasks, now, cost)
     const goal = await commit($, prev, { ...base, tasks }, now, cost)
     await update($, nudgeAtom, () => ({ at: now, calls: 0 }))
+    await syncPlan($, goal)
     const { done, total } = progress(goal)
 
     return { result: `Goal meter updated: ${done}/${total} done.` }
