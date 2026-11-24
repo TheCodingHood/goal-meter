@@ -181,6 +181,8 @@ declare module 'claude-code' {
       finish: Shaped<Finish | null>
       /** The PR whose Fertig button was pressed once: a second press within 5 s starts /fertig. */
       finishConfirm: string | null
+      /** PRs hidden from the band with ×, as "url@headSha": a new commit brings them back. */
+      prHidden: string[]
     }
   }
 }

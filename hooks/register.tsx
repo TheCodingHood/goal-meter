@@ -41,7 +41,7 @@ import {
   PANE,
   PANE_TITLE,
 } from './state'
-import { Pane } from './views'
+import { Band, Pane, bandRows } from './views'
 import type { Actions, Els, View } from './views'
 
 const goalAtom = atom({ plugin: 'goal-meter', key: 'goal' } as const, null)
@@ -71,6 +71,8 @@ const isDonePrsCollapsedAtom = atom({ plugin: 'goal-meter', key: 'isDonePrsColla
 // The same values fertig.ts keeps.
 const finishAtom = atom({ plugin: 'goal-meter', key: 'finish' } as const, null, { shape: 'finish-1' })
 const finishConfirmAtom = atom({ plugin: 'goal-meter', key: 'finishConfirm' } as const, null)
+const prHiddenAtom = atom({ plugin: 'goal-meter', key: 'prHidden' } as const, [])
+const MAX_HIDDEN = 20
 
 
 const SOUND_DONE = 'sounds/done.wav'
@@ -263,6 +265,7 @@ const view = async ($: EngineInterface, els: Els, cols: number): Promise<View> =
   isDonePrsCollapsed: await read($, isDonePrsCollapsedAtom),
   finish: await read($, finishAtom),
   finishConfirm: await read($, finishConfirmAtom),
+  prHidden: await read($, prHiddenAtom),
 })
 
 const actions = ($: EngineInterface): Actions => ({
@@ -293,6 +296,9 @@ const actions = ($: EngineInterface): Actions => ({
   focusPr: url => void update($, prFocusAtom, () => url),
   toggleDonePrs: () => void update($, isDonePrsCollapsedAtom, prev => !prev),
   pressFinish: pr => void pressFinish($, pr).catch(() => undefined),
+  openPane: () => void openPane($),
+  hidePr: pr =>
+    void update($, prHiddenAtom, list => [...list.filter(k => !k.startsWith(`${pr.url}@`)), `${pr.url}@${pr.headSha}`].slice(-MAX_HIDDEN)),
 })
 
 // --- register ------------------------------------------------------------------
@@ -614,6 +620,20 @@ export const register: Register = (on, options) => {
     if (hasPanel(mode)) await openPane($)
 
     return { text: args === '' ? `Goal meter shown (mode: ${mode}). /goal-meter help lists the commands.` : `Goal set: ${args}` }
+  })
+
+  // The band above the prompt: one row per open PR, only while there is one. Other
+  // mods' bands go beneath these rows; the engine's own placeholder is never nested,
+  // the desktop drops a band that nests it.
+  on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {
+    const rows = bandRows(await read($, prsAtom), await read($, prHiddenAtom), await read($, finishAtom))
+    if (e.props.hasSurvey || rows.length === 0) return next(e)
+    const drawn = await Promise.resolve(next(e)).catch(() => null)
+    const below = drawn !== null && typeof drawn === 'object' && (drawn as { type?: string }).type !== 'engine' ? drawn : null
+    const els = $.ui.resolve(e)
+    const v = await view($, { Box: els.Box, Text: els.Text, Button: els.Button, Link: els.Link } as unknown as Els, e.props.bodyColumns || 80)
+
+    return Band(v, actions($), rows, below, e.surface === 'terminal')
   })
 
   on('ui.render', { component: 'Pane', requestId: 'goal-meter' }, async ($, e) => {

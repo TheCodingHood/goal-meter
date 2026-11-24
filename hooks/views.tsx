@@ -40,6 +40,7 @@ export type View = {
   isDonePrsCollapsed: boolean
   finish: Finish | null
   finishConfirm: string | null
+  prHidden: readonly string[]
 }
 
 export type Actions = {
@@ -55,6 +56,9 @@ export type Actions = {
   toggleDonePrs: () => void
   /** The Fertig button: the first press asks, the second starts /fertig; Stopp calls it off. */
   pressFinish: (pr: Pr) => void
+  openPane: () => void
+  /** Hide a PR from the band until its next commit. */
+  hidePr: (pr: Pr) => void
 }
 
 const WARN = '#ef4444'
@@ -544,6 +548,55 @@ const PrsText = (v: View, a: Actions) => {
         )
       })}
       {closed > 0 && <Text dimColor>{`${closed} gemergt/geschlossen`}</Text>}
+    </Box>
+  )
+}
+
+// --- the band above the prompt -----------------------------------------------------
+
+/** The band's PRs: the open ones not hidden, most urgent first, and the one /fertig just merged. */
+export const bandRows = (prs: readonly Pr[], hidden: readonly string[], job: Finish | null): Pr[] =>
+  [...openByUrgency(prs), ...prs.filter(pr => pr.state !== 'OPEN' && job?.url === pr.url)].filter(
+    pr => !hidden.includes(`${pr.url}@${pr.headSha}`),
+  )
+
+export const Band = (v: View, a: Actions, rows: readonly Pr[], below: unknown, isTerminal: boolean) => {
+  const { Box, Button, Link, Text } = v.els
+  // The desktop draws rows edge to edge: a gap keeps them apart. The terminal would pay a whole blank row for it.
+  const gap = isTerminal || (rows.length === 1 && below === null) ? 0 : 1
+
+  return (
+    <Box flexDirection="column" rowGap={gap}>
+      {rows.map(pr => {
+        const k = `${pr.repo}#${pr.number}`
+        const s = prState(pr)
+        const meta = prMeta(pr)
+        const n = finishNote(v.finish, pr)
+        const label = finishLabel(v.finish, v.finishConfirm, pr)
+        return (
+          <Box key={`band-${k}`} flexDirection="row" alignItems="center" columnGap={2} paddingX={1}>
+            <Box flexDirection="row" alignItems="center" columnGap={2} flexWrap="wrap" flexGrow={1} flexShrink={1}>
+              <Text bold>
+                <Link href={pr.url} label={`PR ${prLabel(v, pr)}`} />
+              </Text>
+              <Text color={s.wordColor}>{s.word}</Text>
+              {meta !== '' && <Text dimColor>{meta}</Text>}
+              {n !== null && (
+                <Text color={n.tone === 'warn' ? AMBER : n.tone === 'error' ? FAIL : undefined} dimColor={n.tone === 'dim'}>
+                  {n.text}
+                </Text>
+              )}
+            </Box>
+            <Box flexDirection="row" alignItems="center" columnGap={2} flexShrink={0}>
+              {label !== null && <Button key={`band-finish-${k}`} label={label} plain onPress={() => a.pressFinish(pr)} />}
+              {/* A square with its right half filled: the pane beside the chat, a glyph every surface draws. */}
+              <Button key={`band-pane-${k}`} label="◨" plain onPress={a.openPane} />
+              <Button key={`band-hide-${k}`} label="×" plain dimColor onPress={() => a.hidePr(pr)} />
+            </Box>
+          </Box>
+        )
+      })}
+      {below as RenderChildren}
     </Box>
   )
 }

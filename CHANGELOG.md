@@ -7,6 +7,7 @@ All notable changes to this project are documented here. The format follows [Kee
 ### Added
 - `/fertig` in the goal meter, taken over from the pr-status mod (0.3.1, with its safer session-list check): merges the PR once it is green, takes the worktree down and archives the session. A Fertig button under each PR in the pane asks first ("Wirklich mergen?", 5 s) and turns into Stopp while the job waits; the job's stage shows under the PR. Same rules as before (release PR, draft, base, Conventional title, follow-up PR, dirty worktree, local HEAD, red check, review, settle time), now with tests. `mergeCommitRepos` setting for repositories that merge with a merge commit.
 - Toasts and system notifications for a new commit, failed checks, all green, merged and closed.
+- A band above the prompt again, but only for PRs: one row per open PR with its state, the /fertig stage, the Fertig button, ◨ to open the pane and × to hide the row until the next commit. No PR, no band.
 
 ### Changed
 - Remove the pr-status mod: with both installed, `/fertig` is registered twice and every event is told twice.

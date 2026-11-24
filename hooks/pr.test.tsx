@@ -259,3 +259,54 @@ describe('prs: in the pane', () => {
     await red.ui.unmount()
   })
 })
+
+const BAND = {
+  plugin: 'goal-meter',
+  component: 'AbovePrompt',
+  props: { hasSurvey: false, isWorking: false, maxRows: 10, bodyColumns: 100, scroll: { offset: 0, bodyRows: 10 }, view: {} },
+} as const
+
+describe('prs: the band above the prompt', () => {
+  for (const surface of ['terminal', 'desktop'] as const) {
+    test(`one row per open PR, the pane icon, and × hides it until the next commit, on ${surface}`, async ($, on) => {
+      const world = github(on)
+      // The engine beneath: its own band, which the mod keeps below its rows.
+      on('ui.render', { component: 'AbovePrompt' }, ($$, e) => {
+        const { Text } = $$.ui.resolve(e)
+        return <Text>engine band</Text>
+      })
+      const band = async () => {
+        const ui = await $.ui.mount({ ...BAND, surface } as never)
+        const texts = (await ui.findAll({ type: 'Text' })).map(t => t.text)
+        const buttons = (await ui.findAll({ type: 'Button' })).map(b => String(b.props.label))
+        return { ui, texts, buttons }
+      }
+
+      await start($)
+      const none = await band()
+      expect(none.texts).toEqual(['engine band'])
+      await none.ui.unmount()
+
+      world.branch = `${REPO}1305`
+      world.prs[world.branch] = RUNNING()
+      await $.tool.call({ tool: 'Bash', command: 'gh pr create --fill' } as never)
+      const shown = await band()
+      expect(shown.texts).toEqual(expect.arrayContaining(['Checks laufen', '2/4 Checks · Review offen', 'engine band']))
+      expect(shown.buttons).toEqual(['Fertig', '◨', '×'])
+      await shown.ui.press({ key: 'band-hide-octo-org/octo-app#1305' })
+      await shown.ui.unmount()
+
+      const hidden = await band()
+      expect(hidden.texts).toEqual(['engine band'])
+      await hidden.ui.unmount()
+
+      // A new commit brings the row back.
+      world.prs[world.branch] = { ...RUNNING(), headRefOid: 'bbbbbbb2' }
+      await $.tool.call({ tool: 'Bash', command: 'git push' } as never)
+      const back = await band()
+      expect(back.texts).toContain('engine band')
+      expect(back.buttons).toContain('Fertig')
+      await back.ui.unmount()
+    })
+  }
+})
