@@ -46,12 +46,20 @@
 - Es bleiben die letzten 12 fertigen Läufe; ✔ erledigt, ✗ fehlgeschlagen, ■ abgebrochen, – übersprungen.
 - **Zuklappen.** „▾ Fertig · n“ klappt fertige Tasks zu, „▾ Erledigt · n“ erledigte Aufgaben des Ziels; ein zweiter Klick klappt sie wieder auf.
 
-**PRs** (übernommen aus dem Mod pr-status, vorerst nur Anzeige)
+**PRs** (übernommen aus dem Mod pr-status)
 
 - **PR-Block.** Der GitHub-PR des Branches und seine Checks stehen unter dem Kopf: Zustand („Checks laufen“, „test fehlgeschlagen“, „bereit zum Merge“, „gemergt“), fertige/alle Checks, Review, ein Balken solange Checks laufen, und je Check eine Zeile „Workflow · Name · Dauer“ (externe Checks als „Extern“).
 - **Quelle.** `gh pr view` (gh muss angemeldet sein). Gepollt wird beim Session-Start, nach jedem Turn, nach `gh pr create` und `git push`; alle 30 s solange Checks laufen, alle 2 min danach, gar nicht ohne offenen PR.
 - **Mehrere PRs.** Bis zu 5, sortiert nach Dringlichkeit (rot, Änderungen gewünscht, läuft, wartet, grün). Nur der dringendste zeigt seine Checks, „▸ Checks · n“ holt die eines anderen. Gemergte und geschlossene PRs klappen unter „▸ Gemergt · n“ weg. PRs aus einem anderen Repo tragen dessen Namen (`evenstep#88`).
-- Ohne PR oder ohne gh erscheint nichts. Toasts, Leiste über dem Prompt und `/fertig` liefert vorerst weiter der Mod pr-status.
+- Ohne PR oder ohne gh erscheint nichts.
+- **Toasts.** Neuer Commit, fehlgeschlagene Checks, alle grün, gemergt, geschlossen: als Toast und als Systemmitteilung.
+- **`/fertig`.** Mergt den PR, sobald er grün ist, baut den Worktree ab und archiviert die Session. Im Pane über den Knopf „Fertig“: der erste Klick fragt („Wirklich mergen?“, 5 s), der zweite startet. Solange `/fertig` wartet, steht die Stufe amber unter dem PR und der Knopf heißt „Stopp“. Startet nur auf deine Eingabe, nie über ein Tool des Modells.
+  - Stoppt bei Release-PR, Draft, Basis ≠ Default-Branch, nicht-Conventional-Titel (Squash), Folge-PR auf den Branch, nicht committeten Änderungen, lokalem HEAD ≠ PR, rotem Check, neuem Commit, nach 6 h.
+  - Wartet auf laufende Checks, fehlende Checks (bis 120 s), Review und CodeRabbit, 90 s nach dem letzten Check, und bis GitHub den Merge-Status kennt.
+  - `/fertig stop`, `--ohne-review`, `--ohne-checks`, `--dry-run` (zeigt Urteil und den genauen `gh pr merge`-Befehl), optional eine PR-URL.
+  - Squash mit `--match-head-commit`, Betreff „Titel (#N)“, Body nur die Ticket-Zeilen (`Fixes|Closes|Part of KEY-n`). Repositories in der Einstellung `mergeCommitRepos` bekommen einen Merge-Commit.
+  - Danach: Aufräumen erst nach dem laufenden Turn; ignorierte Dateien unter `tasks/` und `audits/` wandern in den Hauptbaum, `task worktree-destroy` läuft, wenn das Taskfile es hat; dann wird die Session archiviert.
+- Den Mod pr-status danach entfernen: beide zusammen registrieren `/fertig` doppelt und melden alles zweimal.
 
 **Desktop-Look** (angelehnt an das Agents-Panel von savvy-progress)
 
@@ -190,7 +198,9 @@ hooks/
   register.tsx       Events, Tools, der Befehl, Zustand und die Hooks der beiden Ansichten
   views.tsx          das Pane
   tasks.ts           Tasks: Bash-Zeilen, Gate-Tool, ETA-Verlauf (Store-Key runHistory)
-  pr.ts              PRs: gh pr view pollen, Checks lesen, Dringlichkeit
+  pr.ts              PRs: gh pr view pollen, Checks lesen, Dringlichkeit, Toasts
+  finish.ts          /fertig: das Urteil (bereit, warten, stoppen) und der Merge-Befehl, rein
+  fertig.ts          /fertig: Befehl, Fertig-Knopf, Job, Merge, Aufräumen, Archivieren
   svg.ts             Desktop-Zeichnungen: Kopf, Zeilen, Krabbe, gepunkteter Balken
   meter.ts           reine Logik: Zusammenführen, Fortschritt, aktive Zeit, ETA, Frist, Balkenabschnitte
   quota.ts           Kontingent-Messungen, Prognose und Hinweise

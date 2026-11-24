@@ -132,6 +132,27 @@ export type Pr = {
   phase: PrPhase
 }
 
+// /fertig, taken over from the pr-status mod.
+// waiting: armed, the checks decide
+// merging: gh pr merge runs
+// merged: the merge is through, the cleanup waits for the running turn
+// cleaning: the worktree is being taken down
+// done, stopped: over; note says why
+export type FinishStage = 'waiting' | 'merging' | 'merged' | 'cleaning' | 'done' | 'stopped'
+
+export type Finish = {
+  url: string
+  number: number
+  sha: string
+  stage: FinishStage
+  note: string
+  armedAt: number
+  skipReview: boolean
+  skipChecks: boolean
+  /** Stopped on the review alone: the one stop the button offers a way past. */
+  isReviewStop: boolean
+}
+
 declare module 'claude-code' {
   interface PluginState {
     'goal-meter': {
@@ -157,6 +178,9 @@ declare module 'claude-code' {
       /** The PR whose checks show; null: the most urgent one. */
       prFocus: string | null
       isDonePrsCollapsed: boolean
+      finish: Shaped<Finish | null>
+      /** The PR whose Fertig button was pressed once: a second press within 5 s starts /fertig. */
+      finishConfirm: string | null
     }
   }
 }

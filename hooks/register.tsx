@@ -23,6 +23,7 @@ import {
 import type { PlanInput, TaskInput } from './meter'
 import { addSamples, alertKind, alertThreshold, newAlerts } from './quota'
 import { historyTable, report } from './report'
+import { pressFinish, registerFertig, startFertig } from './fertig'
 import { afterTurnPrs, refreshPrs, registerPrs, startPrs } from './pr'
 import { registerTasks, startTasks } from './tasks'
 import {
@@ -67,6 +68,9 @@ const prsAtom = atom({ plugin: 'goal-meter', key: 'prs' } as const, [], { shape:
 const prCheckedAtAtom = atom({ plugin: 'goal-meter', key: 'prCheckedAt' } as const, 0)
 const prFocusAtom = atom({ plugin: 'goal-meter', key: 'prFocus' } as const, null)
 const isDonePrsCollapsedAtom = atom({ plugin: 'goal-meter', key: 'isDonePrsCollapsed' } as const, true)
+// The same values fertig.ts keeps.
+const finishAtom = atom({ plugin: 'goal-meter', key: 'finish' } as const, null, { shape: 'finish-1' })
+const finishConfirmAtom = atom({ plugin: 'goal-meter', key: 'finishConfirm' } as const, null)
 
 
 const SOUND_DONE = 'sounds/done.wav'
@@ -257,6 +261,8 @@ const view = async ($: EngineInterface, els: Els, cols: number): Promise<View> =
   prCheckedAt: await read($, prCheckedAtAtom),
   prFocus: await read($, prFocusAtom),
   isDonePrsCollapsed: await read($, isDonePrsCollapsedAtom),
+  finish: await read($, finishAtom),
+  finishConfirm: await read($, finishConfirmAtom),
 })
 
 const actions = ($: EngineInterface): Actions => ({
@@ -286,13 +292,15 @@ const actions = ($: EngineInterface): Actions => ({
   refreshPrs: () => void refreshPrs($, { branch: true }).catch(() => undefined),
   focusPr: url => void update($, prFocusAtom, () => url),
   toggleDonePrs: () => void update($, isDonePrsCollapsedAtom, prev => !prev),
+  pressFinish: pr => void pressFinish($, pr).catch(() => undefined),
 })
 
 // --- register ------------------------------------------------------------------
 
-export const register: Register = on => {
+export const register: Register = (on, options) => {
   registerTasks(on)
   registerPrs(on)
+  registerFertig(on, options)
 
   on('session.start', async ($, e, next) => {
     await $.command.register({
@@ -338,6 +346,7 @@ export const register: Register = on => {
     if (hasPanel(await read($, modeAtom))) void openPane($)
     await startTasks($)
     startPrs($)
+    await startFertig($)
 
     return next(e)
   })

@@ -2,6 +2,15 @@
 
 All notable changes to this project are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project uses [Semantic Versioning](https://semver.org/).
 
+## [0.7.0-de.17] - 2026-11-24
+
+### Added
+- `/fertig` in the goal meter, taken over from the pr-status mod (0.3.1, with its safer session-list check): merges the PR once it is green, takes the worktree down and archives the session. A Fertig button under each PR in the pane asks first ("Wirklich mergen?", 5 s) and turns into Stopp while the job waits; the job's stage shows under the PR. Same rules as before (release PR, draft, base, Conventional title, follow-up PR, dirty worktree, local HEAD, red check, review, settle time), now with tests. `mergeCommitRepos` setting for repositories that merge with a merge commit.
+- Toasts and system notifications for a new commit, failed checks, all green, merged and closed.
+
+### Changed
+- Remove the pr-status mod: with both installed, `/fertig` is registered twice and every event is told twice.
+
 ## [0.7.0-de.16] - 2026-11-24
 
 ### Added

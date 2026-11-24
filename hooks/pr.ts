@@ -1,6 +1,6 @@
-// PRs: the session's GitHub PRs and their Actions checks, read with `gh pr view` and
-// drawn as a block in the pane. Taken over from the pr-status mod, read-only for now:
-// no toasts, no band and no /fertig yet, those stay with pr-status until it is retired.
+// PRs: the session's GitHub PRs and their Actions checks, read with `gh pr view`,
+// drawn as a block in the pane and told as toasts. Taken over from the pr-status mod;
+// /fertig lives in fertig.ts and hooks into the polling here (prHooks).
 
 import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register, Timer } from 'claude-code'
@@ -23,6 +23,9 @@ const ASK_TRIES = 5
 export const MAX_PRS = 5
 
 const FIELDS = 'number,title,url,state,isDraft,reviewDecision,mergeStateStatus,headRefOid,headRefName,baseRefName,statusCheckRollup'
+// What /fertig reads on top.
+const DETAIL_FIELDS = 'createdAt,labels,body,comments'
+const TITLE = 'GitHub PR'
 const GH = ['gh', '/opt/homebrew/bin/gh', '/usr/local/bin/gh']
 // `gh pr create` prints the new PR's URL on a line of its own, as its last. A command
 // that only names it, as a grep of the rules does, prints a URL inside a line at most.
@@ -63,6 +66,21 @@ export type RawPr = {
   headRefName?: string
   baseRefName?: string
   statusCheckRollup: RawCheck[] | null
+}
+
+export type RawDetail = RawPr & {
+  headRefName: string
+  baseRefName: string
+  createdAt: string
+  labels: { name: string }[]
+  body: string
+  comments: { author: { login: string } | null; body: string }[]
+}
+
+/** Where /fertig hooks into the polling: run after each poll, and keep it fast while busy. Set at session start. */
+export const prHooks: { afterPoll: () => Promise<void>; isBusy: () => Promise<boolean> } = {
+  afterPoll: async () => undefined,
+  isBusy: async () => false,
 }
 
 // --- polling state: the module's own, a reload starts it over ------------------
@@ -266,6 +284,18 @@ export async function refreshPrs($: EngineInterface, options: { branch?: boolean
   } finally {
     isPolling = false
   }
+  void prHooks.afterPoll().catch(() => undefined)
+}
+
+/** Watch a PR no poll has found yet, and poll fast. */
+export function watchPr($: EngineInterface, url: string): void {
+  if (!asked.some(one => one.url === url)) asked.push({ url, tries: 0 })
+  schedule($, FAST_MS)
+}
+
+/** Poll fast for a while, as /fertig does while it runs. */
+export function pollFast($: EngineInterface): void {
+  schedule($, FAST_MS)
 }
 
 async function pollAll($: EngineInterface): Promise<void> {
@@ -305,21 +335,34 @@ async function pollAll($: EngineInterface): Promise<void> {
   const current = await read($, prsAtom)
   const next = mergePrs(current, fresh)
   if (JSON.stringify(next) !== JSON.stringify(current)) await update($, prsAtom, () => next)
+  for (const snap of fresh) {
+    const prev = current.find(one => one.url === snap.url)
+    if (prev !== undefined) await announce($, prev, snap).catch(() => undefined)
+  }
   // A newly red PR shows its checks again, whatever the person folded before.
   const isRed = (pr: Pr) => pr.state === 'OPEN' && pr.checks.some(c => c.state === 'fail')
   const wasRed = new Set(current.filter(isRed).map(pr => `${pr.url}@${pr.headSha}`))
   if (next.some(pr => isRed(pr) && !wasRed.has(`${pr.url}@${pr.headSha}`))) await update($, prFocusAtom, () => null)
-  schedule($, interval(next))
+  schedule($, (await prHooks.isBusy()) ? FAST_MS : interval(next))
 }
 
-async function viewPr($: EngineInterface, url: string | null): Promise<RawPr | null> {
-  const args = ['pr', 'view', ...(url === null ? [] : [url]), '--json', FIELDS]
+function viewPr($: EngineInterface, url: string | null): Promise<RawPr | null> {
+  return view<RawPr>($, url, FIELDS)
+}
+
+/** The PR with what /fertig needs to judge it: labels, body, comments, when it opened. */
+export function fetchDetail($: EngineInterface, url: string | null): Promise<RawDetail | null> {
+  return view<RawDetail>($, url, `${FIELDS},${DETAIL_FIELDS}`)
+}
+
+async function view<T extends RawPr>($: EngineInterface, url: string | null, fields: string): Promise<T | null> {
+  const args = ['pr', 'view', ...(url === null ? [] : [url]), '--json', fields]
   for (const bin of gh === null ? GH : [gh]) {
     try {
       const run = await $.process.run([bin, ...args], { timeoutMs: 20_000 })
       gh = bin
       if (run.exitCode !== 0) return null
-      const raw = JSON.parse(run.stdout) as RawPr
+      const raw = JSON.parse(run.stdout) as T
       return typeof raw?.url === 'string' && typeof raw.number === 'number' ? raw : null
     } catch {
       // gh is not on this path, it hung, or it printed no JSON: try the next one.
@@ -327,6 +370,47 @@ async function viewPr($: EngineInterface, url: string | null): Promise<RawPr | n
   }
 
   return null
+}
+
+/** The gh binary the polls found, for /fertig's own calls. */
+export const ghBin = (): string => gh ?? 'gh'
+
+export async function ghJson<T>($: EngineInterface, args: string[]): Promise<T | null> {
+  try {
+    const run = await $.process.run([ghBin(), ...args], { timeoutMs: 20_000 })
+    return run.exitCode === 0 ? (JSON.parse(run.stdout) as T) : null
+  } catch {
+    return null
+  }
+}
+
+// --- toasts ------------------------------------------------------------------------
+
+async function announce($: EngineInterface, prev: Pr, snap: Pr): Promise<void> {
+  const tag = `PR #${snap.number}`
+  if (prev.state === 'OPEN' && snap.state === 'MERGED') return tell($, `${tag} wurde gemergt`)
+  if (prev.state === 'OPEN' && snap.state === 'CLOSED') return tell($, `${tag} wurde geschlossen`)
+  const isNewHead = prev.headSha !== snap.headSha
+  if (isNewHead) $.ui.toast(`${tag} · neuer Commit ${snap.headSha.slice(0, 7)}, Checks laufen wieder`)
+  const before = new Map(isNewHead ? [] : prev.checks.map(c => [`${c.workflow}/${c.name}`, c.state]))
+  const failed = snap.checks.filter(c => c.state === 'fail' && before.get(`${c.workflow}/${c.name}`) !== 'fail')
+  if (failed.length > 0) await tell($, `${tag} · ${names(failed)} fehlgeschlagen`)
+  if (prev.phase !== 'done' && snap.phase === 'done' && snap.checks.length > 0 && failed.length === 0) {
+    const fails = countOf(snap, 'fail')
+    await tell($, fails === 0 ? `${tag} · alle ${countOf(snap, 'pass')} Checks grün` : `${tag} · Checks fertig, ${fails} fehlgeschlagen`)
+  }
+}
+
+/** A toast for the screen, a system notification for when nobody is looking at it. */
+export async function tell($: EngineInterface, text: string): Promise<void> {
+  $.ui.toast(text, { timeoutMs: 8000 })
+  const sent = await $.ui.notify(text, { title: TITLE }).catch(() => null)
+  // The desktop app and some terminals have no channel of their own: macOS draws it.
+  if (sent !== null && !sent.isSent && (sent.reason === 'no-surface' || sent.reason === 'no-channel')) {
+    await $.process
+      .run(['osascript', '-e', `display notification ${JSON.stringify(text)} with title ${JSON.stringify(TITLE)}`])
+      .catch(() => undefined)
+  }
 }
 
 // --- hooks -------------------------------------------------------------------------

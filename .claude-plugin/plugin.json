@@ -1,8 +1,16 @@
 {
   "name": "goal-meter",
-  "version": "0.7.0-de.16",
+  "version": "0.7.0-de.17",
   "description": "Goal meter pane: big goal, main tasks, subtasks, colored status, elapsed time and ETA",
   "author": { "name": "TheerasakPing" },
   "license": "MIT",
-  "types": "./types/index.d.ts"
+  "types": "./types/index.d.ts",
+  "userConfig": {
+    "mergeCommitRepos": {
+      "type": "string",
+      "title": "Repositories mit Merge-Commit",
+      "description": "owner/name, durch Leerzeichen oder Komma getrennt. /fertig macht dort einen Merge-Commit statt Squash.",
+      "default": "TheCodingHood/evenstep"
+    }
+  }
 }

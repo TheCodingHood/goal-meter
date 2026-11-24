@@ -1,6 +1,6 @@
 import type { Elements, RenderChildren, SessionUsage } from 'claude-code'
 
-import type { Agent, Goal, Mode, ModelInfo, Pr, PrCheck, PrCheckState, QuotaSample, RunStatus, RunStep, RunStepStatus, Step, TaskRun } from '../types'
+import type { Agent, Finish, Goal, Mode, ModelInfo, Pr, PrCheck, PrCheckState, QuotaSample, RunStatus, RunStep, RunStepStatus, Step, TaskRun } from '../types'
 import {
   deadlineState,
   estimate,
@@ -13,6 +13,7 @@ import {
 import { PALETTE, STATUS_COLOR, gradientAt, icon, taskColor } from './palette'
 import { ACCENT, BLUE, DONE, FAIL, GREY, OK, headerHeight, headerSvg, markOf, rowHeight, rowSvg } from './svg'
 import type { Mark, Row, Tile } from './svg'
+import { finishLabel, finishNote } from './fertig'
 import { cadence, countOf, focusOf, isOpenCheck, names, openByUrgency, urgency } from './pr'
 import { RUN_GLYPH, isVisible, runFraction, stepFraction } from './tasks'
 
@@ -37,6 +38,8 @@ export type View = {
   prCheckedAt: number
   prFocus: string | null
   isDonePrsCollapsed: boolean
+  finish: Finish | null
+  finishConfirm: string | null
 }
 
 export type Actions = {
@@ -50,6 +53,8 @@ export type Actions = {
   /** Show this PR's checks; '' shows none, null the most urgent PR's. */
   focusPr: (url: string | null) => void
   toggleDonePrs: () => void
+  /** The Fertig button: the first press asks, the second starts /fertig; Stopp calls it off. */
+  pressFinish: (pr: Pr) => void
 }
 
 const WARN = '#ef4444'
@@ -450,11 +455,26 @@ const PrsDesktop = (v: View, a: Actions, row: (key: string, r: Row) => RenderChi
   if (v.prs.length === 0) return null
   const { Box, Button, Link, Text } = v.els
   const open = openByUrgency(v.prs)
-  const closed = v.prs.filter(pr => pr.state !== 'OPEN').reverse()
+  // The PR /fertig is about stays in view once merged: its outcome is the news.
+  const jobPr = v.prs.find(pr => pr.state !== 'OPEN' && v.finish?.url === pr.url)
+  const closed = v.prs.filter(pr => pr.state !== 'OPEN' && pr !== jobPr).reverse()
   const focus = focusOf(v.prs, v.prFocus)
   const key = (pr: Pr) => `${pr.repo}#${pr.number}`
-  const links = (pr: Pr, isExpanded: boolean) => (
+  const note = (pr: Pr) => {
+    const n = finishNote(v.finish, pr)
+    return (
+      n !== null && (
+        <Text key={`pr-note-${key(pr)}`} color={n.tone === 'warn' ? AMBER : n.tone === 'error' ? FAIL : undefined} dimColor={n.tone === 'dim'}>
+          {n.text}
+        </Text>
+      )
+    )
+  }
+  const links = (pr: Pr, isExpanded: boolean) => {
+    const label = finishLabel(v.finish, v.finishConfirm, pr)
+    return (
     <Box key={`pr-links-${key(pr)}`} gap={2}>
+      {label !== null && <Button key={`pr-finish-${key(pr)}`} label={label} onPress={() => a.pressFinish(pr)} />}
       {pr.checks.length > 0 && (
         <Button
           key={`pr-checks-${key(pr)}`}
@@ -465,18 +485,20 @@ const PrsDesktop = (v: View, a: Actions, row: (key: string, r: Row) => RenderChi
       )}
       <Link key={`pr-link-${key(pr)}`} href={pr.url} label={`${prLabel(v, pr)} auf GitHub`} />
     </Box>
-  )
+    )
+  }
 
   return (
     <Box key="prs" flexDirection="column">
       <Text key="h-prs" dimColor>
         {prHeading(v)}
       </Text>
-      {open.map(pr => [row(`pr-${key(pr)}`, prRow(v, pr, pr.url === focus)), links(pr, pr.url === focus)])}
+      {open.map(pr => [row(`pr-${key(pr)}`, prRow(v, pr, pr.url === focus)), note(pr), links(pr, pr.url === focus)])}
+      {jobPr !== undefined && [row(`pr-${key(jobPr)}`, prRow(v, jobPr, false)), note(jobPr), links(jobPr, false)]}
       {closed.length > 0 && (
         <Button key="done-prs" plain label={foldLabel(closedLabel(closed), closed.length, v.isDonePrsCollapsed)} onPress={a.toggleDonePrs} />
       )}
-      {!v.isDonePrsCollapsed && closed.map(pr => [row(`pr-${key(pr)}`, prRow(v, pr, false)), links(pr, false)])}
+      {!v.isDonePrsCollapsed && closed.map(pr => [row(`pr-${key(pr)}`, prRow(v, pr, false)), note(pr), links(pr, false)])}
       <Box key="pr-footer" gap={2}>
         <Text dimColor>{prFooter(v)}</Text>
         <Button key="pr-refresh" plain label="Neu laden" onPress={a.refreshPrs} />
@@ -486,10 +508,11 @@ const PrsDesktop = (v: View, a: Actions, row: (key: string, r: Row) => RenderChi
 }
 
 /** Terminal and phone: one line per open PR, the closed ones counted. */
-const PrsText = (v: View) => {
+const PrsText = (v: View, a: Actions) => {
   if (v.prs.length === 0) return null
-  const { Box, Text } = v.els
-  const open = openByUrgency(v.prs)
+  const { Box, Button, Text } = v.els
+  const jobPr = v.prs.find(pr => pr.state !== 'OPEN' && v.finish?.url === pr.url)
+  const open = [...openByUrgency(v.prs), ...(jobPr === undefined ? [] : [jobPr])]
   const closed = v.prs.length - open.length
 
   return (
@@ -500,13 +523,23 @@ const PrsText = (v: View) => {
       {open.map(pr => {
         const s = prState(pr)
         const meta = prMeta(pr)
+        const n = finishNote(v.finish, pr)
+        const label = finishLabel(v.finish, v.finishConfirm, pr)
         return (
-          <Box>
-            <Text bold>{`${prLabel(v, pr)} `}</Text>
-            <Text color={s.wordColor}>{s.word}</Text>
-            <Text dimColor wrap="truncate-end">
-              {meta ? ` · ${meta}` : ''}
-            </Text>
+          <Box flexDirection="column">
+            <Box>
+              <Text bold>{`${prLabel(v, pr)} `}</Text>
+              <Text color={s.wordColor}>{s.word}</Text>
+              <Text dimColor wrap="truncate-end">
+                {meta ? ` · ${meta}` : ''}
+              </Text>
+            </Box>
+            {n !== null && (
+              <Text color={n.tone === 'warn' ? AMBER : n.tone === 'error' ? FAIL : undefined} dimColor={n.tone === 'dim'}>
+                {`  ${n.text}`}
+              </Text>
+            )}
+            {label !== null && <Button key={`pr-finish-${pr.repo}#${pr.number}`} plain label={`  [${label}]`} onPress={() => a.pressFinish(pr)} />}
           </Box>
         )
       })}
@@ -635,7 +668,7 @@ export const Pane = (v: View, a: Actions) => {
     if (v.runs.some(r => isVisible(r, v.now))) {
       return (
         <Box flexDirection="column" backgroundColor={PALETTE.paneBg} paddingX={1}>
-          {PrsText(v)}
+          {PrsText(v, a)}
           {Tasks(v, a)}
           <Text> </Text>
           {Agents(v)}
@@ -651,7 +684,7 @@ export const Pane = (v: View, a: Actions) => {
           </Box>
         </Box>
         <Text> </Text>
-        {PrsText(v)}
+        {PrsText(v, a)}
         {Agents(v)}
       </Box>
     )
@@ -707,7 +740,7 @@ export const Pane = (v: View, a: Actions) => {
         {deadline !== null && <Text color={deadline.color}>{deadline.text}</Text>}
       </Box>
       {v.factor !== 1 && <Text dimColor>{`ETA nach Verlauf korrigiert ×${v.factor.toFixed(2)}`}</Text>}
-      {PrsText(v)}
+      {PrsText(v, a)}
       {doneCount > 0 && (
         <Button key="done-tasks" plain label={foldLabel('Erledigt', doneCount, v.isDoneTasksCollapsed)} onPress={a.toggleDoneTasks} />
       )}
