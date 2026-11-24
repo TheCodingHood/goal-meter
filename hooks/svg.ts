@@ -104,6 +104,10 @@ export const crab = (x: number, y: number, color: string, opts: { isDim?: boolea
 export const shell = (x: number, y: number, color: string): string =>
   `<g transform="translate(${x},${y})"><rect x="3" y="3" width="24" height="18" rx="4" fill="none" stroke="${color}" stroke-width="1.6"/><path d="M8 9l3.5 3-3.5 3" fill="none" stroke="${color}" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M14 15.5h6" stroke="${color}" stroke-width="1.6" stroke-linecap="round"/></g>`
 
+// A pull-request glyph for PR rows, 30×24: two commits on the left, the branch merging in on the right.
+export const prGlyph = (x: number, y: number, color: string): string =>
+  `<g transform="translate(${x},${y})" fill="none" stroke="${color}" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="5.5" r="2.6"/><circle cx="9" cy="18.5" r="2.6"/><path d="M9 8.1v7.8"/><circle cx="21" cy="18.5" r="2.6"/><path d="M21 15.9V10.5a3 3 0 0 0-3-3h-4.5"/><path d="M15.5 5l-2.5 2.5 2.5 2.5"/></g>`
+
 export type Mark = 'running' | 'done' | 'failed' | 'pending' | 'skipped'
 
 export const statusMark = (x: number, y: number, status: Mark, color: string): string => {
@@ -149,7 +153,7 @@ export const headerSvg = (W: number, title: string, bar: { ratio: number; label:
 // --- one row: icon, title, a coloured word with meta, optional bar and lines ---
 
 export type Row = {
-  icon: 'crab' | 'shell'
+  icon: 'crab' | 'shell' | 'pr'
   color: string
   title: string
   word: string
@@ -177,7 +181,12 @@ export const rowSvg = (W: number, r: Row): string => {
   const H = rowHeight(r)
   const X = 42
   const textW = W - X - 22
-  const icon = r.icon === 'crab' ? crab(0, 7, r.color, { isDim: r.isDim, isWalking: r.isWalking }) : shell(0, 7, r.isDim ? GREY : r.color)
+  const icon =
+    r.icon === 'crab'
+      ? crab(0, 7, r.color, { isDim: r.isDim, isWalking: r.isWalking })
+      : r.icon === 'pr'
+        ? prGlyph(0, 7, r.isDim ? GREY : r.color)
+        : shell(0, 7, r.isDim ? GREY : r.color)
   let body = `<g opacity="${r.isDim ? 0.55 : 1}">${icon}`
   body += text(X, 18, 13, r.isDim ? 's' : 't', fitText(r.title, 13, textW), ' font-weight="600"')
   body += `<text x="${X}" y="34" font-family="${FONT}" font-size="11"><tspan fill="${r.wordColor}">${xml(r.word)}</tspan><tspan class="s">${xml(fitText(r.meta ? `  ·  ${r.meta}` : '', 11, Math.max(20, textW - textWidth(r.word, 11))))}</tspan></text>`

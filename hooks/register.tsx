@@ -23,6 +23,8 @@ import {
 import type { PlanInput, TaskInput } from './meter'
 import { addSamples, alertKind, alertThreshold, newAlerts } from './quota'
 import { historyTable, report } from './report'
+import { pressFinish, registerFertig, startFertig } from './fertig'
+import { afterTurnPrs, refreshPrs, registerPrs, startPrs } from './pr'
 import { registerTasks, startTasks } from './tasks'
 import {
   MODES,
@@ -39,7 +41,7 @@ import {
   PANE,
   PANE_TITLE,
 } from './state'
-import { Pane } from './views'
+import { Band, Pane, bandRows } from './views'
 import type { Actions, Els, View } from './views'
 
 const goalAtom = atom({ plugin: 'goal-meter', key: 'goal' } as const, null)
@@ -61,6 +63,16 @@ const isDoneRunsCollapsedAtom = atom({ plugin: 'goal-meter', key: 'isDoneRunsCol
 const nudgeAtom = atom({ plugin: 'goal-meter', key: 'nudge' } as const, { at: 0, calls: 0 })
 // The main tasks last handed to the app's plan, so subtask-only changes send nothing.
 const planSyncedAtom = atom({ plugin: 'goal-meter', key: 'planSynced' } as const, '')
+// The same values pr.ts keeps (see runsAtom above).
+const prsAtom = atom({ plugin: 'goal-meter', key: 'prs' } as const, [], { shape: 'prs-1' })
+const prCheckedAtAtom = atom({ plugin: 'goal-meter', key: 'prCheckedAt' } as const, 0)
+const prFocusAtom = atom({ plugin: 'goal-meter', key: 'prFocus' } as const, null)
+const isDonePrsCollapsedAtom = atom({ plugin: 'goal-meter', key: 'isDonePrsCollapsed' } as const, true)
+// The same values fertig.ts keeps.
+const finishAtom = atom({ plugin: 'goal-meter', key: 'finish' } as const, null, { shape: 'finish-1' })
+const finishConfirmAtom = atom({ plugin: 'goal-meter', key: 'finishConfirm' } as const, null)
+const prHiddenAtom = atom({ plugin: 'goal-meter', key: 'prHidden' } as const, [])
+const MAX_HIDDEN = 20
 
 
 const SOUND_DONE = 'sounds/done.wav'
@@ -247,6 +259,13 @@ const view = async ($: EngineInterface, els: Els, cols: number): Promise<View> =
   runs: await read($, runsAtom),
   isDoneTasksCollapsed: await read($, isDoneTasksCollapsedAtom),
   isDoneRunsCollapsed: await read($, isDoneRunsCollapsedAtom),
+  prs: await read($, prsAtom),
+  prCheckedAt: await read($, prCheckedAtAtom),
+  prFocus: await read($, prFocusAtom),
+  isDonePrsCollapsed: await read($, isDonePrsCollapsedAtom),
+  finish: await read($, finishAtom),
+  finishConfirm: await read($, finishConfirmAtom),
+  prHidden: await read($, prHiddenAtom),
 })
 
 const actions = ($: EngineInterface): Actions => ({
@@ -273,12 +292,21 @@ const actions = ($: EngineInterface): Actions => ({
     })(),
   toggleDoneTasks: () => void update($, isDoneTasksCollapsedAtom, prev => !prev),
   toggleDoneRuns: () => void update($, isDoneRunsCollapsedAtom, prev => !prev),
+  refreshPrs: () => void refreshPrs($, { branch: true }).catch(() => undefined),
+  focusPr: url => void update($, prFocusAtom, () => url),
+  toggleDonePrs: () => void update($, isDonePrsCollapsedAtom, prev => !prev),
+  pressFinish: pr => void pressFinish($, pr).catch(() => undefined),
+  openPane: () => void openPane($),
+  hidePr: pr =>
+    void update($, prHiddenAtom, list => [...list.filter(k => !k.startsWith(`${pr.url}@`)), `${pr.url}@${pr.headSha}`].slice(-MAX_HIDDEN)),
 })
 
 // --- register ------------------------------------------------------------------
 
-export const register: Register = on => {
+export const register: Register = (on, options) => {
   registerTasks(on)
+  registerPrs(on)
+  registerFertig(on, options)
 
   on('session.start', async ($, e, next) => {
     await $.command.register({
@@ -323,6 +351,8 @@ export const register: Register = on => {
     // The pane starts with the session, as the Tasks pane did, goal or not.
     if (hasPanel(await read($, modeAtom))) void openPane($)
     await startTasks($)
+    startPrs($)
+    await startFertig($)
 
     return next(e)
   })
@@ -357,6 +387,7 @@ export const register: Register = on => {
       await update($, isTurnRunningAtom, () => false)
       const goal = await read($, goalAtom)
       if (goal !== null) await saveGoal($, stopActive(goal, now))
+      afterTurnPrs($)
     }
     await refreshStatus($)
 
@@ -589,6 +620,20 @@ export const register: Register = on => {
     if (hasPanel(mode)) await openPane($)
 
     return { text: args === '' ? `Goal meter shown (mode: ${mode}). /goal-meter help lists the commands.` : `Goal set: ${args}` }
+  })
+
+  // The band above the prompt: one row per open PR, only while there is one. Other
+  // mods' bands go beneath these rows; the engine's own placeholder is never nested,
+  // the desktop drops a band that nests it.
+  on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {
+    const rows = bandRows(await read($, prsAtom), await read($, prHiddenAtom), await read($, finishAtom))
+    if (e.props.hasSurvey || rows.length === 0) return next(e)
+    const drawn = await Promise.resolve(next(e)).catch(() => null)
+    const below = drawn !== null && typeof drawn === 'object' && (drawn as { type?: string }).type !== 'engine' ? drawn : null
+    const els = $.ui.resolve(e)
+    const v = await view($, { Box: els.Box, Text: els.Text, Button: els.Button, Link: els.Link } as unknown as Els, e.props.bodyColumns || 80)
+
+    return Band(v, actions($), rows, below, e.surface === 'terminal')
   })
 
   on('ui.render', { component: 'Pane', requestId: 'goal-meter' }, async ($, e) => {

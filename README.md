@@ -14,7 +14,7 @@
 
 </div>
 
-> **Deutsche Fassung.** Dieser Fork von [TheerasakPing/goal-meter](https://github.com/TheerasakPing/goal-meter) übersetzt alle Texte im Pane und in den Toasts ins Deutsche. Außerdem zeigt diese Fassung keine Leiste über dem Prompt und keine Statuszeile, das Pane keine Balken, Knöpfe, Modell- oder Kontingent-Anzeige, und sie bringt die Tasks aus dem Mod task-progress mit. Das Vorschaubild (`docs/preview.svg`) zeigt noch die Thai-Texte des Originals.
+> **Deutsche Fassung.** Dieser Fork von [TheerasakPing/goal-meter](https://github.com/TheerasakPing/goal-meter) übersetzt alle Texte im Pane und in den Toasts ins Deutsche. Außerdem zeigt diese Fassung keine Statuszeile und eine Leiste über dem Prompt nur für offene PRs, das Pane keine Modell- oder Kontingent-Anzeige, und sie bringt die Tasks aus dem Mod task-progress und PRs samt `/fertig` aus dem Mod pr-status mit. Das Vorschaubild (`docs/preview.svg`) zeigt noch die Thai-Texte des Originals.
 
 ## Funktionen
 
@@ -45,6 +45,22 @@
 - **Öffnet von selbst.** Das Pane öffnet sich mit jeder Session, auch ohne Ziel. Ein sichtbarer Task öffnet es einmal erneut, jedes Gate jedes Mal (nicht im Modus `status`). Kann die Oberfläche es nicht platzieren, steht der Grund als graue Zeile im Verlauf.
 - Es bleiben die letzten 12 fertigen Läufe; ✔ erledigt, ✗ fehlgeschlagen, ■ abgebrochen, – übersprungen.
 - **Zuklappen.** „▾ Fertig · n“ klappt fertige Tasks zu, „▾ Erledigt · n“ erledigte Aufgaben des Ziels; ein zweiter Klick klappt sie wieder auf.
+
+**PRs** (übernommen aus dem Mod pr-status)
+
+- **PR-Block.** Der GitHub-PR des Branches und seine Checks stehen unter dem Kopf: Zustand („Checks laufen“, „test fehlgeschlagen“, „bereit zum Merge“, „gemergt“), fertige/alle Checks, Review, ein Balken solange Checks laufen, und je Check eine Zeile „Workflow · Name · Dauer“ (externe Checks als „Extern“).
+- **Quelle.** `gh pr view` (gh muss angemeldet sein). Gepollt wird beim Session-Start, nach jedem Turn, nach `gh pr create` und `git push`; alle 30 s solange Checks laufen, alle 2 min danach, gar nicht ohne offenen PR.
+- **Mehrere PRs.** Bis zu 5, sortiert nach Dringlichkeit (rot, Änderungen gewünscht, läuft, wartet, grün). Nur der dringendste zeigt seine Checks, „▸ Checks · n“ holt die eines anderen. Gemergte und geschlossene PRs klappen unter „▸ Gemergt · n“ weg. PRs aus einem anderen Repo tragen dessen Namen (`evenstep#88`).
+- Ohne PR oder ohne gh erscheint nichts.
+- **Leiste über dem Prompt.** Solange ein PR offen ist, je PR eine Zeile: „PR #N“ als Link, Zustand, Checks und Review, die `/fertig`-Stufe, rechts der Fertig-Knopf (wie im Pane), „◨“ öffnet das Pane, „×“ blendet die Zeile bis zum nächsten Commit aus. Ohne offenen PR keine Leiste.
+- **Toasts.** Neuer Commit, fehlgeschlagene Checks, alle grün, gemergt, geschlossen: als Toast und als Systemmitteilung.
+- **`/fertig`.** Mergt den PR, sobald er grün ist, baut den Worktree ab und archiviert die Session. Im Pane über den Knopf „Fertig“: der erste Klick fragt („Wirklich mergen?“, 5 s), der zweite startet. Solange `/fertig` wartet, steht die Stufe amber unter dem PR und der Knopf heißt „Stopp“. Startet nur auf deine Eingabe, nie über ein Tool des Modells.
+  - Stoppt bei Release-PR, Draft, Basis ≠ Default-Branch, nicht-Conventional-Titel (Squash), Folge-PR auf den Branch, nicht committeten Änderungen, lokalem HEAD ≠ PR, rotem Check, neuem Commit, nach 6 h.
+  - Wartet auf laufende Checks, fehlende Checks (bis 120 s), Review und CodeRabbit, 90 s nach dem letzten Check, und bis GitHub den Merge-Status kennt.
+  - `/fertig stop`, `--ohne-review`, `--ohne-checks`, `--dry-run` (zeigt Urteil und den genauen `gh pr merge`-Befehl), optional eine PR-URL.
+  - Squash mit `--match-head-commit`, Betreff „Titel (#N)“, Body nur die Ticket-Zeilen (`Fixes|Closes|Part of KEY-n`). Repositories in der Einstellung `mergeCommitRepos` bekommen einen Merge-Commit.
+  - Danach: Aufräumen erst nach dem laufenden Turn; ignorierte Dateien unter `tasks/` und `audits/` wandern in den Hauptbaum, `task worktree-destroy` läuft, wenn das Taskfile es hat; dann wird die Session archiviert.
+- Den Mod pr-status danach entfernen: beide zusammen registrieren `/fertig` doppelt, zeigen zwei Leisten und melden alles zweimal. `/pr-status` entfällt; „Neu laden“ im Pane fragt GitHub sofort.
 
 **Desktop-Look** (angelehnt an das Agents-Panel von savvy-progress)
 
@@ -183,6 +199,9 @@ hooks/
   register.tsx       Events, Tools, der Befehl, Zustand und die Hooks der beiden Ansichten
   views.tsx          das Pane
   tasks.ts           Tasks: Bash-Zeilen, Gate-Tool, ETA-Verlauf (Store-Key runHistory)
+  pr.ts              PRs: gh pr view pollen, Checks lesen, Dringlichkeit, Toasts
+  finish.ts          /fertig: das Urteil (bereit, warten, stoppen) und der Merge-Befehl, rein
+  fertig.ts          /fertig: Befehl, Fertig-Knopf, Job, Merge, Aufräumen, Archivieren
   svg.ts             Desktop-Zeichnungen: Kopf, Zeilen, Krabbe, gepunkteter Balken
   meter.ts           reine Logik: Zusammenführen, Fortschritt, aktive Zeit, ETA, Frist, Balkenabschnitte
   quota.ts           Kontingent-Messungen, Prognose und Hinweise
