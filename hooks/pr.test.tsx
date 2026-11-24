@@ -147,7 +147,10 @@ describe('prs: pure helpers', () => {
 
   test('word and meta of a row', () => {
     expect(prState(pr(1)).word).toBe('keine Checks')
-    expect(prState(pr(1, { merge: 'CLEAN', review: 'APPROVED' })).word).toBe('bereit zum Merge')
+    // GitHub calls a PR without required checks CLEAN: that is no green.
+    expect(prState(pr(1, { merge: 'CLEAN', review: 'APPROVED' })).word).toBe('keine Checks')
+    const pass = { name: 'test', workflow: 'CI', state: 'pass' as const, startedAt: null, completedAt: null, url: null }
+    expect(prState(pr(1, { merge: 'CLEAN', review: 'APPROVED', checks: [pass] })).word).toBe('bereit zum Merge')
     expect(prState(pr(1, { checks: [fail] })).word).toBe('test fehlgeschlagen')
     expect(prState(pr(1, { state: 'MERGED' })).word).toBe('gemergt')
     expect(prMeta(pr(1, { checks: [fail], review: 'APPROVED' }))).toBe('0/1 grün · Review ok')

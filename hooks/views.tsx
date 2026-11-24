@@ -373,8 +373,9 @@ export const prState = (pr: Pr): { word: string; wordColor: string; color: strin
   if (pr.review === 'CHANGES_REQUESTED') return { word: 'Änderungen gewünscht', wordColor: FAIL, color: FAIL, mark: 'failed' }
   if (pr.phase === 'waiting') return { word: 'warte auf Checks', wordColor: AMBER, color: GREY, mark: 'pending' }
   if (pr.phase === 'running') return { word: 'Checks laufen', wordColor: BLUE, color: BLUE, mark: 'running' }
-  if (pr.merge === 'CLEAN') return { word: 'bereit zum Merge', wordColor: OK, color: OK, mark: 'done' }
+  // No check is no green: GitHub calls a PR without required checks CLEAN all the same.
   if (pr.checks.length === 0) return { word: 'keine Checks', wordColor: GREY, color: GREY, mark: 'skipped' }
+  if (pr.merge === 'CLEAN') return { word: 'bereit zum Merge', wordColor: OK, color: OK, mark: 'done' }
 
   return { word: 'grün', wordColor: OK, color: OK, mark: 'done' }
 }
