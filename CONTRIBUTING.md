@@ -17,7 +17,7 @@ claude plugin validate .
 claude plugin test .
 ```
 
-Both must pass. CI runs the same two commands.
+Both must pass. This fork has no CI: run them locally before every push.
 
 - Keep pure logic (merging, progress, ETA, bar slices) in `hooks/meter.ts` and add a test for it.
 - Keep colors in `hooks/palette.ts`.
