@@ -1,6 +1,6 @@
-import type { Elements, SessionUsage } from 'claude-code'
+import type { Elements, RenderChildren, SessionUsage } from 'claude-code'
 
-import type { Agent, Goal, Mode, ModelInfo, QuotaSample, RunStatus, RunStep, RunStepStatus, Step, TaskRun } from '../types'
+import type { Agent, Goal, Mode, ModelInfo, Pr, PrCheck, PrCheckState, QuotaSample, RunStatus, RunStep, RunStepStatus, Step, TaskRun } from '../types'
 import {
   deadlineState,
   estimate,
@@ -13,11 +13,12 @@ import {
 import { PALETTE, STATUS_COLOR, gradientAt, icon, taskColor } from './palette'
 import { ACCENT, BLUE, DONE, FAIL, GREY, OK, headerHeight, headerSvg, markOf, rowHeight, rowSvg } from './svg'
 import type { Mark, Row, Tile } from './svg'
+import { cadence, countOf, focusOf, isOpenCheck, names, openByUrgency, urgency } from './pr'
 import { RUN_GLYPH, isVisible, runFraction, stepFraction } from './tasks'
 
 // Box, Text and Button take the same props on every surface this mod draws on;
 // the desktop adds Svg, which draws the rows in the savvy-progress look.
-export type Els = Pick<Elements['terminal'], 'Box' | 'Text' | 'Button'> & { Svg?: Elements['desktop']['Svg'] }
+export type Els = Pick<Elements['terminal'], 'Box' | 'Text' | 'Button' | 'Link'> & { Svg?: Elements['desktop']['Svg'] }
 
 export type View = {
   els: Els
@@ -32,6 +33,10 @@ export type View = {
   runs: readonly TaskRun[]
   isDoneTasksCollapsed: boolean
   isDoneRunsCollapsed: boolean
+  prs: readonly Pr[]
+  prCheckedAt: number
+  prFocus: string | null
+  isDonePrsCollapsed: boolean
 }
 
 export type Actions = {
@@ -41,6 +46,10 @@ export type Actions = {
   toggleMute: () => void
   toggleDoneTasks: () => void
   toggleDoneRuns: () => void
+  refreshPrs: () => void
+  /** Show this PR's checks; '' shows none, null the most urgent PR's. */
+  focusPr: (url: string | null) => void
+  toggleDonePrs: () => void
 }
 
 const WARN = '#ef4444'
@@ -319,6 +328,193 @@ const agentRow = (v: View, agent: Agent): Row => {
   }
 }
 
+// --- PRs ---------------------------------------------------------------------------
+
+const AMBER = '#d4900a'
+
+const CHECK_MARK: Record<PrCheckState, Mark> = {
+  pass: 'done',
+  fail: 'failed',
+  running: 'running',
+  pending: 'pending',
+  neutral: 'skipped',
+}
+
+/** "#142", or "evenstep#88" for a PR in another repository than the session's first. */
+const prLabel = (v: View, pr: Pr): string => {
+  const home = v.prs[0]?.repo ?? pr.repo
+  return `${pr.repo !== home ? (pr.repo.split('/')[1] ?? pr.repo) : ''}#${pr.number}`
+}
+
+const reviewText = (pr: Pr): string =>
+  pr.review === 'APPROVED'
+    ? 'Review ok'
+    : pr.review === 'CHANGES_REQUESTED'
+      ? 'Änderungen gewünscht'
+      : pr.review === 'REVIEW_REQUIRED'
+        ? 'Review offen'
+        : ''
+
+/** The coloured word, the icon colour and the mark of a PR row. */
+export const prState = (pr: Pr): { word: string; wordColor: string; color: string; mark: Mark } => {
+  if (pr.state === 'MERGED') return { word: 'gemergt', wordColor: ACCENT, color: ACCENT, mark: 'done' }
+  if (pr.state !== 'OPEN') return { word: 'geschlossen', wordColor: GREY, color: GREY, mark: 'skipped' }
+  const failed = pr.checks.filter(c => c.state === 'fail')
+  if (failed.length > 0) return { word: `${names(failed)} fehlgeschlagen`, wordColor: FAIL, color: FAIL, mark: 'failed' }
+  if (pr.review === 'CHANGES_REQUESTED') return { word: 'Änderungen gewünscht', wordColor: FAIL, color: FAIL, mark: 'failed' }
+  if (pr.phase === 'waiting') return { word: 'warte auf Checks', wordColor: AMBER, color: GREY, mark: 'pending' }
+  if (pr.phase === 'running') return { word: 'Checks laufen', wordColor: BLUE, color: BLUE, mark: 'running' }
+  if (pr.merge === 'CLEAN') return { word: 'bereit zum Merge', wordColor: OK, color: OK, mark: 'done' }
+  if (pr.checks.length === 0) return { word: 'keine Checks', wordColor: GREY, color: GREY, mark: 'skipped' }
+
+  return { word: 'grün', wordColor: OK, color: OK, mark: 'done' }
+}
+
+/** "2/5 Checks · Review offen", "alle 5 grün · Review ok", or the branches of a closed PR. */
+export const prMeta = (pr: Pr): string => {
+  if (pr.state !== 'OPEN') return pr.head && pr.base ? `${pr.head} → ${pr.base}` : ''
+  const total = pr.checks.length
+  const open = pr.checks.filter(isOpenCheck).length
+  const pass = countOf(pr, 'pass')
+  const neutral = countOf(pr, 'neutral')
+  const failed = countOf(pr, 'fail')
+  const checks =
+    total === 0
+      ? ''
+      : open > 0
+        ? `${total - open}/${total} Checks`
+        : failed > 0
+          ? `${pass}/${total} grün`
+          : `alle ${pass} grün`
+
+  return [pr.isDraft ? 'Draft' : '', checks, neutral > 0 && open === 0 ? `${neutral} neutral` : '', pr.review === 'CHANGES_REQUESTED' ? '' : reviewText(pr)]
+    .filter(Boolean)
+    .join(' · ')
+}
+
+const checkTime = (c: PrCheck, now: number): string => {
+  const start = c.startedAt === null ? NaN : Date.parse(c.startedAt)
+  if (Number.isNaN(start)) return c.state === 'pending' ? 'wartet' : ''
+  if (c.completedAt === null) return isOpenCheck(c) ? `seit ${formatDuration(Math.max(0, now - start))}` : ''
+
+  return formatDuration(Math.max(0, Date.parse(c.completedAt) - start))
+}
+
+const prRow = (v: View, pr: Pr, isExpanded: boolean): Row => {
+  const s = prState(pr)
+  const total = pr.checks.length
+  const open = pr.checks.filter(isOpenCheck)
+  const isMoving = pr.state === 'OPEN' && (pr.phase === 'waiting' || pr.phase === 'running')
+  const starts = open.map(c => (c.startedAt === null ? NaN : Date.parse(c.startedAt))).filter(t => !Number.isNaN(t))
+  const since = starts.length > 0 ? `seit ${formatDuration(Math.max(0, v.now - Math.min(...starts)))}` : undefined
+
+  return {
+    icon: 'pr',
+    color: s.color,
+    title: `${prLabel(v, pr)} ${pr.title}`,
+    word: s.word,
+    wordColor: s.wordColor,
+    meta: prMeta(pr),
+    mark: s.mark,
+    isDim: pr.state !== 'OPEN',
+    bar: isMoving ? { ratio: total === 0 ? 0 : (total - open.length) / total, isGrey: pr.phase === 'waiting' } : undefined,
+    stats: isMoving ? since : undefined,
+    note: isMoving && pr.head ? `${pr.head} → ${pr.base}` : undefined,
+    lines: isExpanded
+      ? pr.checks.map(c => ({
+          mark: CHECK_MARK[c.state],
+          color: c.state === 'running' ? BLUE : c.state === 'fail' ? FAIL : GREY,
+          text: [c.workflow || 'Extern', c.name, checkTime(c, v.now)].filter(Boolean).join(' · '),
+          isDim: c.state === 'pending' || c.state === 'neutral',
+        }))
+      : undefined,
+  }
+}
+
+/** "PR", "PR · läuft", or "PRs · 3 offen · 1 rot · 1 läuft". */
+const prHeading = (v: View): string => {
+  const open = openByUrgency(v.prs)
+  const red = open.filter(pr => urgency(pr) <= 1).length
+  const moving = open.filter(pr => pr.phase === 'running' || pr.phase === 'waiting').length
+  if (v.prs.length === 1) return `PR${moving > 0 ? ' · läuft' : ''}`
+
+  return [`PRs · ${open.length} offen`, red > 0 ? `${red} rot` : '', moving > 0 ? `${moving} läuft` : ''].filter(Boolean).join(' · ')
+}
+
+const prFooter = (v: View): string =>
+  [v.prCheckedAt > 0 ? `vor ${formatDuration(Math.max(0, v.now - v.prCheckedAt))}` : '', cadence(v.prs)].filter(Boolean).join(' · ')
+
+const closedLabel = (closed: readonly Pr[]): string => (closed.every(pr => pr.state === 'MERGED') ? 'Gemergt' : 'Abgeschlossen')
+
+const PrsDesktop = (v: View, a: Actions, row: (key: string, r: Row) => RenderChildren) => {
+  if (v.prs.length === 0) return null
+  const { Box, Button, Link, Text } = v.els
+  const open = openByUrgency(v.prs)
+  const closed = v.prs.filter(pr => pr.state !== 'OPEN').reverse()
+  const focus = focusOf(v.prs, v.prFocus)
+  const key = (pr: Pr) => `${pr.repo}#${pr.number}`
+  const links = (pr: Pr, isExpanded: boolean) => (
+    <Box key={`pr-links-${key(pr)}`} gap={2}>
+      {pr.checks.length > 0 && (
+        <Button
+          key={`pr-checks-${key(pr)}`}
+          plain
+          label={`${isExpanded ? '▾' : '▸'} Checks · ${pr.checks.length}`}
+          onPress={() => a.focusPr(isExpanded ? '' : pr.url)}
+        />
+      )}
+      <Link key={`pr-link-${key(pr)}`} href={pr.url} label={`${prLabel(v, pr)} auf GitHub`} />
+    </Box>
+  )
+
+  return (
+    <Box key="prs" flexDirection="column">
+      <Text key="h-prs" dimColor>
+        {prHeading(v)}
+      </Text>
+      {open.map(pr => [row(`pr-${key(pr)}`, prRow(v, pr, pr.url === focus)), links(pr, pr.url === focus)])}
+      {closed.length > 0 && (
+        <Button key="done-prs" plain label={foldLabel(closedLabel(closed), closed.length, v.isDonePrsCollapsed)} onPress={a.toggleDonePrs} />
+      )}
+      {!v.isDonePrsCollapsed && closed.map(pr => [row(`pr-${key(pr)}`, prRow(v, pr, false)), links(pr, false)])}
+      <Box key="pr-footer" gap={2}>
+        <Text dimColor>{prFooter(v)}</Text>
+        <Button key="pr-refresh" plain label="Neu laden" onPress={a.refreshPrs} />
+      </Box>
+    </Box>
+  )
+}
+
+/** Terminal and phone: one line per open PR, the closed ones counted. */
+const PrsText = (v: View) => {
+  if (v.prs.length === 0) return null
+  const { Box, Text } = v.els
+  const open = openByUrgency(v.prs)
+  const closed = v.prs.length - open.length
+
+  return (
+    <Box flexDirection="column">
+      <Text color={PALETTE.header} bold>
+        {prHeading(v)}
+      </Text>
+      {open.map(pr => {
+        const s = prState(pr)
+        const meta = prMeta(pr)
+        return (
+          <Box>
+            <Text bold>{`${prLabel(v, pr)} `}</Text>
+            <Text color={s.wordColor}>{s.word}</Text>
+            <Text dimColor wrap="truncate-end">
+              {meta ? ` · ${meta}` : ''}
+            </Text>
+          </Box>
+        )
+      })}
+      {closed > 0 && <Text dimColor>{`${closed} gemergt/geschlossen`}</Text>}
+    </Box>
+  )
+}
+
 const PaneDesktop = (v: View, a: Actions, Svg: NonNullable<Els['Svg']>) => {
   const { Box, Button, Text } = v.els
   const W = Math.max(240, Math.min(900, v.cols * 8 - 8))
@@ -349,6 +545,7 @@ const PaneDesktop = (v: View, a: Actions, Svg: NonNullable<Els['Svg']>) => {
       {v.agents.map((ag, i) => row(`agent-${i}`, agentRow(v, ag)))}
     </Box>
   )
+  const prsBlock = PrsDesktop(v, a, row)
   const goal = v.goal
 
   if (goal === null) {
@@ -368,6 +565,7 @@ const PaneDesktop = (v: View, a: Actions, Svg: NonNullable<Els['Svg']>) => {
               `${running.length} laufend, ${finished.length} fertig`,
             )
           : section('empty', 'Noch kein Ziel — /goal-meter <Ziel>')}
+        {prsBlock}
         {tasksBlock}
         {agentsBlock}
       </Box>
@@ -408,6 +606,7 @@ const PaneDesktop = (v: View, a: Actions, Svg: NonNullable<Els['Svg']>) => {
         height={headerHeight(title, true)}
       />
       {extras.length > 0 && section('extras', extras.join(' · '))}
+      {prsBlock}
       <Box key="goal-tasks" flexDirection="column">
         {doneCount > 0 && (
           <Button key="done-tasks" plain label={foldLabel('Erledigt', doneCount, v.isDoneTasksCollapsed)} onPress={a.toggleDoneTasks} />
@@ -436,6 +635,7 @@ export const Pane = (v: View, a: Actions) => {
     if (v.runs.some(r => isVisible(r, v.now))) {
       return (
         <Box flexDirection="column" backgroundColor={PALETTE.paneBg} paddingX={1}>
+          {PrsText(v)}
           {Tasks(v, a)}
           <Text> </Text>
           {Agents(v)}
@@ -451,6 +651,7 @@ export const Pane = (v: View, a: Actions) => {
           </Box>
         </Box>
         <Text> </Text>
+        {PrsText(v)}
         {Agents(v)}
       </Box>
     )
@@ -506,6 +707,7 @@ export const Pane = (v: View, a: Actions) => {
         {deadline !== null && <Text color={deadline.color}>{deadline.text}</Text>}
       </Box>
       {v.factor !== 1 && <Text dimColor>{`ETA nach Verlauf korrigiert ×${v.factor.toFixed(2)}`}</Text>}
+      {PrsText(v)}
       {doneCount > 0 && (
         <Button key="done-tasks" plain label={foldLabel('Erledigt', doneCount, v.isDoneTasksCollapsed)} onPress={a.toggleDoneTasks} />
       )}

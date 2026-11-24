@@ -23,6 +23,7 @@ import {
 import type { PlanInput, TaskInput } from './meter'
 import { addSamples, alertKind, alertThreshold, newAlerts } from './quota'
 import { historyTable, report } from './report'
+import { afterTurnPrs, refreshPrs, registerPrs, startPrs } from './pr'
 import { registerTasks, startTasks } from './tasks'
 import {
   MODES,
@@ -61,6 +62,11 @@ const isDoneRunsCollapsedAtom = atom({ plugin: 'goal-meter', key: 'isDoneRunsCol
 const nudgeAtom = atom({ plugin: 'goal-meter', key: 'nudge' } as const, { at: 0, calls: 0 })
 // The main tasks last handed to the app's plan, so subtask-only changes send nothing.
 const planSyncedAtom = atom({ plugin: 'goal-meter', key: 'planSynced' } as const, '')
+// The same values pr.ts keeps (see runsAtom above).
+const prsAtom = atom({ plugin: 'goal-meter', key: 'prs' } as const, [], { shape: 'prs-1' })
+const prCheckedAtAtom = atom({ plugin: 'goal-meter', key: 'prCheckedAt' } as const, 0)
+const prFocusAtom = atom({ plugin: 'goal-meter', key: 'prFocus' } as const, null)
+const isDonePrsCollapsedAtom = atom({ plugin: 'goal-meter', key: 'isDonePrsCollapsed' } as const, true)
 
 
 const SOUND_DONE = 'sounds/done.wav'
@@ -247,6 +253,10 @@ const view = async ($: EngineInterface, els: Els, cols: number): Promise<View> =
   runs: await read($, runsAtom),
   isDoneTasksCollapsed: await read($, isDoneTasksCollapsedAtom),
   isDoneRunsCollapsed: await read($, isDoneRunsCollapsedAtom),
+  prs: await read($, prsAtom),
+  prCheckedAt: await read($, prCheckedAtAtom),
+  prFocus: await read($, prFocusAtom),
+  isDonePrsCollapsed: await read($, isDonePrsCollapsedAtom),
 })
 
 const actions = ($: EngineInterface): Actions => ({
@@ -273,12 +283,16 @@ const actions = ($: EngineInterface): Actions => ({
     })(),
   toggleDoneTasks: () => void update($, isDoneTasksCollapsedAtom, prev => !prev),
   toggleDoneRuns: () => void update($, isDoneRunsCollapsedAtom, prev => !prev),
+  refreshPrs: () => void refreshPrs($, { branch: true }).catch(() => undefined),
+  focusPr: url => void update($, prFocusAtom, () => url),
+  toggleDonePrs: () => void update($, isDonePrsCollapsedAtom, prev => !prev),
 })
 
 // --- register ------------------------------------------------------------------
 
 export const register: Register = on => {
   registerTasks(on)
+  registerPrs(on)
 
   on('session.start', async ($, e, next) => {
     await $.command.register({
@@ -323,6 +337,7 @@ export const register: Register = on => {
     // The pane starts with the session, as the Tasks pane did, goal or not.
     if (hasPanel(await read($, modeAtom))) void openPane($)
     await startTasks($)
+    startPrs($)
 
     return next(e)
   })
@@ -357,6 +372,7 @@ export const register: Register = on => {
       await update($, isTurnRunningAtom, () => false)
       const goal = await read($, goalAtom)
       if (goal !== null) await saveGoal($, stopActive(goal, now))
+      afterTurnPrs($)
     }
     await refreshStatus($)
 

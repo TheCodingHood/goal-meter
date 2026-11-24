@@ -46,6 +46,13 @@
 - Es bleiben die letzten 12 fertigen Läufe; ✔ erledigt, ✗ fehlgeschlagen, ■ abgebrochen, – übersprungen.
 - **Zuklappen.** „▾ Fertig · n“ klappt fertige Tasks zu, „▾ Erledigt · n“ erledigte Aufgaben des Ziels; ein zweiter Klick klappt sie wieder auf.
 
+**PRs** (übernommen aus dem Mod pr-status, vorerst nur Anzeige)
+
+- **PR-Block.** Der GitHub-PR des Branches und seine Checks stehen unter dem Kopf: Zustand („Checks laufen“, „test fehlgeschlagen“, „bereit zum Merge“, „gemergt“), fertige/alle Checks, Review, ein Balken solange Checks laufen, und je Check eine Zeile „Workflow · Name · Dauer“ (externe Checks als „Extern“).
+- **Quelle.** `gh pr view` (gh muss angemeldet sein). Gepollt wird beim Session-Start, nach jedem Turn, nach `gh pr create` und `git push`; alle 30 s solange Checks laufen, alle 2 min danach, gar nicht ohne offenen PR.
+- **Mehrere PRs.** Bis zu 5, sortiert nach Dringlichkeit (rot, Änderungen gewünscht, läuft, wartet, grün). Nur der dringendste zeigt seine Checks, „▸ Checks · n“ holt die eines anderen. Gemergte und geschlossene PRs klappen unter „▸ Gemergt · n“ weg. PRs aus einem anderen Repo tragen dessen Namen (`evenstep#88`).
+- Ohne PR oder ohne gh erscheint nichts. Toasts, Leiste über dem Prompt und `/fertig` liefert vorerst weiter der Mod pr-status.
+
 **Desktop-Look** (angelehnt an das Agents-Panel von savvy-progress)
 
 - In der Desktop-App zeichnet das Pane jede Zeile als SVG: Kopf mit gepunktetem Fortschrittsbalken und Kacheln (Aufgaben, Aktiv, Rest, Fertig um), Aufgaben mit Pixel-Krabbe in der Aufgabenfarbe, Tasks mit Terminal-Symbol, dünne Balken und Statusmarken rechts. Ohne Ziel zeigt der Kopf Laufend, Fertig und Zeit.
@@ -183,6 +190,7 @@ hooks/
   register.tsx       Events, Tools, der Befehl, Zustand und die Hooks der beiden Ansichten
   views.tsx          das Pane
   tasks.ts           Tasks: Bash-Zeilen, Gate-Tool, ETA-Verlauf (Store-Key runHistory)
+  pr.ts              PRs: gh pr view pollen, Checks lesen, Dringlichkeit
   svg.ts             Desktop-Zeichnungen: Kopf, Zeilen, Krabbe, gepunkteter Balken
   meter.ts           reine Logik: Zusammenführen, Fortschritt, aktive Zeit, ETA, Frist, Balkenabschnitte
   quota.ts           Kontingent-Messungen, Prognose und Hinweise
